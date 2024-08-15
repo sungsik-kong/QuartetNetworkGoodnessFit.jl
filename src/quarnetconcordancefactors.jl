@@ -12,6 +12,7 @@ function network_expectedCF(net::HybridNetwork;
                             showprogressbar=false, 
                             inheritancecorrelation=0, 
                             printCFs=false::Bool,
+                            savenet=false::Bool,
                             symbolic=false::Bool,
                             savecsv=false::Bool,
                             filename="result"::AbstractString)
@@ -71,9 +72,9 @@ function network_expectedCF(net::HybridNetwork;
             if e.gamma!==1.0 eNewick=replace(eNewick,"$(e.gamma)"=>"$(dict[e.gamma])") end
         end
     end
-    open("$filename.net.txt", "w") do file write(file, eNewick) end
     
     #if(printCFs) display(df) end #*-_-*#
+    if(savenet) open("$filename.net.txt", "w") do file write(file, eNewick) end end
     if(savecsv) CSV.write("$filename.csv", df, header=false) end #*-_-*#   
     
     if printCFs
