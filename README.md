@@ -15,7 +15,7 @@ It depends on the [PhyloNetworks](https://github.com/JuliaPhylo/PhyloNetworks.jl
 package.
 
 ## printing and writing qCFs
-Input:
+- Input: tree or network topology with edge lengths (in coalescent unit) and inheritance probability specified written in Newick format. This topology can be read in using `readTopology` from `PhyloNetworks`. 
 ```
 a
 ```
