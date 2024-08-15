@@ -33,7 +33,25 @@ tip labels: a, b, d, c, ...
 ```
 ### Output
 network_expectedCF(net,savenet=false,savecsv=false,printCFs=true,symbolic=true)
-Some updates were made on the function `network_expectedCF` and fice additional options were added, namely `filename`, `savenet`, `savecsv`, `printCFs`, and `symbolic`. By default the latter four options are set `false`, which results in the original `network_expectedCF`.
+Some updates were made on the function `network_expectedCF` and fice additional options were added, namely `filename`, `savenet`, `savecsv`, `printCFs`, and `symbolic`. By default the latter four options are set `false`, which results in the original `network_expectedCF`. 
+```
+julia> network_expectedCF(net)
+(PhyloNetworks.QuartetT{StaticArraysCore.MVector{3, Float64}}[4-taxon set number 1; taxon numbers: 1,2,3,4
+data: [0.994571087456838, 0.0027144562715809588, 0.0027144562715809588], 4-taxon set number 2; taxon numbers: 1,2,3,5
+data: [0.9992749063953199, 0.00036254680234001707, 0.00036254680234001707], 4-taxon set number 3; taxon numbers: 1,2,4,5
+data: [0.994571087456838, 0.0027144562715809588, 0.0027144562715809588], 4-taxon set number 4; taxon numbers: 1,3,4,5
+data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856], 4-taxon set number 5; taxon numbers: 2,3,4,5
+data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856]], ["a", "b", "c", "d", "e"])
+
+julia> network_expectedCF(net,savenet=false,savecsv=false,printCFs=false,symbolic=false)
+(PhyloNetworks.QuartetT{StaticArraysCore.MVector{3, Float64}}[4-taxon set number 1; taxon numbers: 1,2,3,4
+data: [0.994571087456838, 0.0027144562715809588, 0.0027144562715809588], 4-taxon set number 2; taxon numbers: 1,2,3,5
+data: [0.9992749063953199, 0.00036254680234001707, 0.00036254680234001707], 4-taxon set number 3; taxon numbers: 1,2,4,5
+data: [0.994571087456838, 0.0027144562715809588, 0.0027144562715809588], 4-taxon set number 4; taxon numbers: 1,3,4,5
+data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856], 4-taxon set number 5; taxon numbers: 2,3,4,5
+data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856]], ["a", "b", "c", "d", "e"])
+```
+
 
 ## citing
 
