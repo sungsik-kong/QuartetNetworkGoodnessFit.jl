@@ -673,19 +673,21 @@ end
 #=
 tops=readlines("topologies_n5_l1.txt")
 error=0
+k=0
 for i in 1:248
     println("Now at the network $i")
     j=0
-    while j<1
+    while rep<1
         try 
             net0=readTopologyrand(tops[i])
             test(net0)
-            j+=1        
+            rep+=1        
+            k+=1
         catch
             error+=1
             continue
         end
     end
 end
-println(j,error)
+println(k,error)
 =#
