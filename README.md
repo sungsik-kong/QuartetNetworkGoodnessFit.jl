@@ -17,10 +17,11 @@ package.
 ## printing and writing qCFs
 - Input: A tree or network topology with edge lengths ($\tau$) (in coalescent unit) and inheritance probability ($\gamma$) specified written in Newick format. This topology can be read in using `readTopology` from `PhyloNetworks`. In case no parameter information is available, a newick without $\tau$ and $\gamma$ can be read using the function `readTopologyrand`. See below for example.
 ```
-#parameters available
-net=readTopology("((a:4.20458,(b:4.88952,((d:2.63556,(c:3.6052,e:3.42833):4.80495):4.4157)#H5:3.19142::0.36252):1.0612):2.64775,#H5:1.33688::0.63748);")
-#parameters unavailable
-net=readTopologyrand("((a,(b,((d,(c,e)))#H5)),#H5);")
+net=readTopology("((a:4.20458,(b:4.88952,((d:2.63556,(c:3.6052,e:3.42833):4.80495):4.4157)#H5:3.19142::0.36252):1.0612):2.64775,#H5:1.33688::0.63748);")#parameters available
+```
+or
+```
+net=readTopologyrand("((a,(b,((d,(c,e)))#H5)),#H5);")#parameters unavailable
 ```
 
 ## citing
