@@ -14,6 +14,12 @@ goodness of fit of a phylogenetic network to data on subsets of 4 tips.
 It depends on the [PhyloNetworks](https://github.com/JuliaPhylo/PhyloNetworks.jl)
 package.
 
+## printing and writing qCFs
+Input:
+```
+a
+```
+
 ## citing
 
 See [`CITATION.bib`](CITATION.bib) for the relevant reference(s).
