@@ -52,6 +52,36 @@ data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856], 4-taxon set 
 data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856]], ["a", "b", "c", "d", "e"])
 ```
 
+Set `printCFs=true` to see the equation that computes the quartet concordance factor in `network_expectedCF`.
+```
+julia> network_expectedCF(net,savenet=false,savecsv=false,printCFs=true,symbolic=false)
+Topology: ((a:3.28261,(b:1.94464,((d:2.58257,(c:1.9092,e:3.28323):2.00782):2.44487)#H5:4.29999::0.03679):1.0132):2.6364,#H5:4.82378::0.96321);
+(PhyloNetworks.QuartetT{StaticArraysCore.MVector{3, Float64}}[4-taxon set number 1; taxon numbers: 1,2,3,4
+data: [0.994571087456838, 0.0027144562715809588, 0.0027144562715809588], 4-taxon set number 2; taxon numbers: 1,2,3,5
+data: [0.9992749063953199, 0.00036254680234001707, 0.00036254680234001707], 4-taxon set number 3; taxon numbers: 1,2,4,5
+data: [0.994571087456838, 0.0027144562715809588, 0.0027144562715809588], 4-taxon set number 4; taxon numbers: 1,3,4,5
+data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856], 4-taxon set number 5; taxon numbers: 2,3,4,5
+data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856]], ["a", "b", "c", "d", "e"], 15×2 DataFrame
+ Row │ Split   CF
+     │ String  String
+─────┼───────────────────────────────────────────
+   1 │ ab|cd   ((1-exp(-2.44487))+(((exp(-2.444…
+   2 │ ac|bd   ((((exp(-2.44487)*0.03679)*(0.03…
+   3 │ ad|bc   ((((exp(-2.44487)*0.03679)*(0.03…
+   4 │ ab|ce   ((1-exp(-4.45269))+(((exp(-4.452…
+   5 │ ac|be   ((((exp(-4.45269)*0.03679)*(0.03…
+   6 │ ae|bc   ((((exp(-4.45269)*0.03679)*(0.03…
+   7 │ ab|de   ((1-exp(-2.44487))+(((exp(-2.444…
+   8 │ ad|be   ((((exp(-2.44487)*0.03679)*(0.03…
+   9 │ ae|bd   ((((exp(-2.44487)*0.03679)*(0.03…
+  10 │ ac|de   (exp(-2.00782)/3)
+  11 │ ad|ce   (1-2*exp(-2.00782)/3)
+  12 │ ae|cd   (exp(-2.00782)/3)
+  13 │ bc|de   (exp(-2.00782)/3)
+  14 │ bd|ce   (1-2*exp(-2.00782)/3)
+  15 │ be|cd   (exp(-2.00782)/3))
+```
+
 
 ## citing
 
