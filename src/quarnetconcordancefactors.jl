@@ -78,6 +78,7 @@ function network_expectedCF(net::HybridNetwork;
     if(savecsv) CSV.write("$filename.csv", df, header=false) end #*-_-*#   
     
     if printCFs
+        println("Topology: $eNewick")
         return quartet, taxa, df
     else
         return quartet, taxa
