@@ -81,6 +81,35 @@ data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856]], ["a", "b", 
   14 │ bd|ce   (1-2*exp(-2.00782)/3)
   15 │ be|cd   (exp(-2.00782)/3))
 ```
+To have to equation that does not contain numerical values but symbolic names (i.e., t_{#} for edge lengths, r_{#} for inheritance probabilities, and rho for the inheritance correlation, set option `symbolic=true`.
+```
+julia> network_expectedCF(net,savenet=false,savecsv=false,printCFs=true,symbolic=true)
+Topology: ((a:t_{1},(b:t_{2},((d:t_{3},(c:t_{4},e:t_{5}):t_{6}):t_{7})#H5:t_{8}::r_{1}):t_{9}):t_{10},#H5:t_{11}::(1-r_{1}));
+(PhyloNetworks.QuartetT{StaticArraysCore.MVector{3, Float64}}[4-taxon set number 1; taxon numbers: 1,2,3,4
+data: [0.994571087456838, 0.0027144562715809588, 0.0027144562715809588], 4-taxon set number 2; taxon numbers: 1,2,3,5
+data: [0.9992749063953199, 0.00036254680234001707, 0.00036254680234001707], 4-taxon set number 3; taxon numbers: 1,2,4,5
+data: [0.994571087456838, 0.0027144562715809588, 0.0027144562715809588], 4-taxon set number 4; taxon numbers: 1,3,4,5
+data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856], 4-taxon set number 5; taxon numbers: 2,3,4,5
+data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856]], ["a", "b", "c", "d", "e"], 15×2 DataFrame
+ Row │ Split   CF
+     │ String  String
+─────┼───────────────────────────────────────────
+   1 │ ab|cd   ((1-exp(-t_{7}))+(((exp(-t_{7})*…
+   2 │ ac|bd   ((((exp(-t_{7})*r_{1})*(r_{1}*1-…
+   3 │ ad|bc   ((((exp(-t_{7})*r_{1})*(r_{1}*1-…
+   4 │ ab|ce   ((1-exp(-t_{7}-t_{6}))+(((exp(-t…
+   5 │ ac|be   ((((exp(-t_{7}-t_{6})*r_{1})*(r_…
+   6 │ ae|bc   ((((exp(-t_{7}-t_{6})*r_{1})*(r_…
+   7 │ ab|de   ((1-exp(-t_{7}))+(((exp(-t_{7})*…
+   8 │ ad|be   ((((exp(-t_{7})*r_{1})*(r_{1}*1-…
+   9 │ ae|bd   ((((exp(-t_{7})*r_{1})*(r_{1}*1-…
+  10 │ ac|de   (exp(-t_{6})/3)
+  11 │ ad|ce   (1-2*exp(-t_{6})/3)
+  12 │ ae|cd   (exp(-t_{6})/3)
+  13 │ bc|de   (exp(-t_{6})/3)
+  14 │ bd|ce   (1-2*exp(-t_{6})/3)
+  15 │ be|cd   (exp(-t_{6})/3))
+```
 Note the network topology with parameters are written on the top of the output, this can be stored at the working directory by setting `savenet=true`. Default network name is `$filename.net.txt`. Sometimes the equation does not display the entire equation. Set `savecsv=true` to store the bottom DataFrame in a `csv` file and is stored at the working directory with the default name `$filename.csv`. $filename is set as `result` by default but can be changed using option `filename=$desiredfilename`.
 
 ## citing
