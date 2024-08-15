@@ -1,73 +1,26 @@
+const global dpoints=5
 """
-    network_expectedCF(net::HybridNetwork; showprogressbar=true,
-            inheritancecorrelation=0)
-
-Calculate the quartet concordance factors (qCF) expected from the multispecies
-coalescent along network `net`. Output: `(q,t)` where `t` is a list of taxa,
-and `q` is a list of 4-taxon set objects of type `PhyloNetworks.QuartetT{datatype}`.
-In each element of `q`, `taxonnumber` gives the indices in `taxa`
-of the 4 taxa of interest; and `data` contains the 3 concordance factors, for the
-3 unrooted topologies in the following order:
-`t1,t2|t3,t4`, `t1,t3|t2,t4` and `t1,t4|t2,t3`.
-This output is similar to that of `PhyloNetworks.countquartetsintrees` when
-1 individual = 1 taxon, with 4-taxon sets listed in the same order
-(same output `t`, then same order of 4-taxon sets in `q`).
-
-Assumption: the network should have **edge lengths in coalescent units**.
-
-By default, lineages at a hybrid node come from a parent (chosen according
-to inheritance probabilities γ) *independently* across lineages.
-With option `inheritancecorrelation > 0`, lineages have positive dependence,
-e.g. to model locus-specific inheritance probabilities, randomly drawn from a
-Beta distribution with mean γ across all loci. If `inheritancecorrelation` is
-set to 1, then all lineages at a given locus inherit from the same
-(randomly sampled) parent. More generally, the lineages' parents
-are distributed according to a Dirichlet process with base distribution determined
-by the γ values, and with concentration parameter α = (1-r)/r, that is, r = 1/(1+α),
-where `r` is the input inheritance correlation.
-
-# examples
-```jldoctest
-julia> using PhyloNetworks, QuartetNetworkGoodnessFit
-
-julia> # network with 3_2 cycles, causing some anomalous quartets
-       net = readTopology("(D:1,((C:1,#H25:0):0.1,((((B1:10,B2:1):1.5,#H1:0):10.8,((A1:1,A2:1):0.001)#H1:0::0.5):0.5)#H25:0::0.501):1);");
-
-julia> # using PhyloPlots; plot(net, showedgelength=true);
-
-julia> q,t = network_expectedCF(net); # anomalous: A1, A2, {B1 or B2}, {C or D}
-Calculation quartet CFs for 15 quartets...
-0+---------------+100%
-  ***************
-
-julia> show(q[1].taxonnumber)
-[1, 2, 3, 4]
-julia> show(q[1].data)
-[0.8885456713760765, 0.05572716431196175, 0.05572716431196175]
-
-julia> for qi in q
-         println(join(t[qi.taxonnumber],",") * ": " * string(round.(qi.data, sigdigits=3)))
-       end
-A1,A2,B1,B2: [0.889, 0.0557, 0.0557]
-A1,A2,B1,C: [0.168, 0.416, 0.416]
-A1,A2,B2,C: [0.168, 0.416, 0.416]
-A1,B1,B2,C: [0.0372, 0.0372, 0.926]
-A2,B1,B2,C: [0.0372, 0.0372, 0.926]
-A1,A2,B1,D: [0.168, 0.416, 0.416]
-A1,A2,B2,D: [0.168, 0.416, 0.416]
-A1,B1,B2,D: [0.0372, 0.0372, 0.926]
-A2,B1,B2,D: [0.0372, 0.0372, 0.926]
-A1,A2,C,D: [0.69, 0.155, 0.155]
-A1,B1,C,D: [0.793, 0.103, 0.103]
-A2,B1,C,D: [0.793, 0.103, 0.103]
-A1,B2,C,D: [0.793, 0.103, 0.103]
-A2,B2,C,D: [0.793, 0.103, 0.103]
-B1,B2,C,D: [1.0, 9.42e-7, 9.42e-7]
-
-```
+    network_expectedCF(net::HybridNetwork; 
+                            showprogressbar=false, 
+                            inheritancecorrelation=0, 
+                            printCFs=false::Bool,
+                            symbolic=false::Bool,
+                            savecsv=false::Bool,
+                            filename="res_qCFs"::AbstractString)
 """
-function network_expectedCF(net::HybridNetwork; showprogressbar=true,
-            inheritancecorrelation=0)
+function network_expectedCF(net::HybridNetwork; 
+                            showprogressbar=false, 
+                            inheritancecorrelation=0, 
+                            printCFs=false::Bool,
+                            symbolic=false::Bool,
+                            savecsv=false::Bool,
+                            filename="result"::AbstractString)
+    #println("&rho (inheritancecorrelation) = $inheritancecorrelation")
+    #dpoints=5::Integer = decimal points for parameters
+#   df = DataFrame(Split=String[], Qnet=String[], CF=String[]) #*-_-*#
+    df = DataFrame(Split=String[], CF=String[]) #*-_-*#
+    dict=dictionary(net,inheritancecorrelation)
+
     net.node[net.root].leaf && error("The root can't be a leaf.")
     PN.check_nonmissing_nonnegative_edgelengths(net,
         "Edge lengths are needed in coalescent units to calcualte expected CFs.")
@@ -102,7 +55,7 @@ function network_expectedCF(net::HybridNetwork; showprogressbar=true,
         nextstar = Integer(ceil(nquarnets_perstar))
     end
     for qi in 1:numq
-        network_expectedCF!(quartet[qi], net, taxa, taxonnumber, inheritancecorrelation)
+        network_expectedCF!(quartet[qi], net, taxa, taxonnumber, inheritancecorrelation, printCFs, df, symbolic, dict)
         if showprogressbar && qi >= nextstar
             print("*")
             stars += 1
@@ -110,7 +63,24 @@ function network_expectedCF(net::HybridNetwork; showprogressbar=true,
         end
     end
     showprogressbar && print("\n")
-    return quartet, taxa
+
+    ######OUTPUT FILES######
+    eNewick=PN.writeTopology(net)
+    if(symbolic) #replace values with numbers"
+        for e in net.edge eNewick=replace(eNewick,"$(e.length)"=>"t_{$(e.number)}")
+            if e.gamma!==1.0 eNewick=replace(eNewick,"$(e.gamma)"=>"$(dict[e.gamma])") end
+        end
+    end
+    open("$filename.net.txt", "w") do file write(file, eNewick) end
+    
+    #if(printCFs) display(df) end #*-_-*#
+    if(savecsv) CSV.write("$filename.csv", df, header=false) end #*-_-*#   
+    
+    if printCFs
+        return quartet, taxa, df
+    else
+        return quartet, taxa
+    end
 end
 
 """
@@ -129,8 +99,17 @@ For `inheritancecorrelation` see [`network_expectedCF`](@ref).
 Its value should be between 0 and 1 (not checked by this internal function).
 """
 function network_expectedCF!(quartet::PN.QuartetT{MVector{3,Float64}},
-                             net::HybridNetwork, taxa, taxonnumber,
-                             inheritancecorrelation)
+                                net::HybridNetwork, 
+                                taxa, 
+                                taxonnumber, 
+                                inheritancecorrelation, 
+                                printCFs,
+                                df,
+                                symbolic,
+                                dict)
+    #kong: create an array that stores the CF formulas for ab|cd, ac|bd, ad|bc
+    qCFp=String["","",""] #*-_-*#
+
     net = deepcopy(net)
     PN.removedegree2nodes!(net)
     # delete all taxa except for the 4 in the quartet
@@ -139,8 +118,23 @@ function network_expectedCF!(quartet::PN.QuartetT{MVector{3,Float64}},
         deleteleaf!(net, taxon, simplify=false, unroot=false)
         # would like unroot=true but deleteleaf! throws an error when the root is connected to 2 outgoing hybrid edges
     end
-    quartet.data .= network_expectedCF_4taxa!(net, taxa[quartet.taxonnumber], inheritancecorrelation)
-    # for i in 1:3 quartet.data[i] = qCF[i]; end
+    #println("[144]Input network = $(PN.writeTopologyLevel1(net))")
+    
+    q,qCFp=network_expectedCF_4taxa!(net, taxa[quartet.taxonnumber], inheritancecorrelation, qCFp, dict, symbolic)
+    quartet.data .= q
+
+    #kong: storing the equations to DataFrames
+    for i in 1:3
+        qCFp[i]=replace(qCFp[i], "&"=>"")
+        qCFp[i]=filter(x -> !isspace(x), qCFp[i])
+    end
+
+    f=taxa[quartet.taxonnumber]
+    
+    push!(df, ("$(f[1])$(f[2])|$(f[3])$(f[4])", "$(qCFp[1])"))
+    push!(df, ("$(f[1])$(f[3])|$(f[2])$(f[4])", "$(qCFp[2])"))         
+    push!(df, ("$(f[1])$(f[4])|$(f[2])$(f[3])", "$(qCFp[3])"))
+    
     return quartet
 end
 
@@ -168,7 +162,11 @@ by removing hybrid edges for the recursive calculation of qCFs.
 For `inheritancecorrelation` see [`network_expectedCF`](@ref).
 Its value should be between 0 and 1 (not checked by this internal function).
 """
-function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorrelation)
+function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorrelation, qCFp, dict, symbolic)
+    
+    #kong: begin writing qCF equations  with an opening bracket
+    qCFp .*= "(" 
+    
     deleteaboveLSA!(net)
     # make sure the root is of degree 3+
     if length(net.node[net.root].edge) <= 2
@@ -183,7 +181,7 @@ function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorr
     function isexternal(ib) # is bcc[ib] of degree 2 and adjacent to an external edge?
         # yes if: 1 single exit adjacent to a leaf
         length(exitnodes[ib]) != 1 && return false
-        ch = getchildren(exitnodes[ib][1])
+        ch = PN.getChildren(exitnodes[ib][1])
         return length(ch) == 1 && ch[1].leaf
     end
     for ib in reverse(bloborder)
@@ -203,45 +201,73 @@ function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorr
         preorder!(net)
         # find a lowest hybrid node and # of taxa below it
         hyb = net.nodes_changed[findlast(n -> n.hybrid, net.nodes_changed)]
-        funneledge = [e for e in hyb.edge if getparent(e) === hyb]
+        #funneledge = [e for e in hyb.edge if getparent(e) === hyb]
+        funneledge = [e for e in hyb.edge if PhyloNetworks.getParent(e) === hyb]
         ispolytomy = length(funneledge) > 1
         funneldescendants = union([PN.descendants(e) for e in funneledge]...)
         ndes = length(funneldescendants)
-        n2 = (ispolytomy ? hyb : getchild(funneledge[1]))
+        #n2 = (ispolytomy ? hyb : getchild(funneledge[1]))
+        n2 = (ispolytomy ? hyb : PhyloNetworks.getChild(funneledge[1]))
         ndes > 2 && n2.leaf && error("2+ descendants below the lowest hybrid, yet n2 is a leaf. taxa: $(fourtaxa)")
     end
     if ndes > 2 # simple formula for qCF: find cut edge and its length
         # inheritance correlation has no impact
         # pool of cut edges below. contains NO external edge, bc n2 not leaf (if reticulation), nice tree ow
         cutpool = (net.numHybrids == 0 ? net.edge :
-                    [e for e in n2.edge if getparent(e) === n2])
-        filter!(e -> !getchild(e).leaf, cutpool)
+                    [e for e in n2.edge if PN.getParent(e) === n2])
+        #filter!(e -> !getchild(e).leaf, cutpool)
+        filter!(e -> !PhyloNetworks.getChild(e).leaf, cutpool)
         net.numHybrids > 0 || length(cutpool) <= 1 ||
             error("2+ cut edges, yet 4-taxon tree, degree-3 root and no degree-2 nodes. taxa: $(fourtaxa)")
         sistertofirst = 2    # arbitrarily correct if 3-way polytomy (no cut edge)
         internallength = 0.0 # correct if polytomy
         for e in cutpool
+            length(cutpool) < 3 || println("more than 2 edged merged")
             internallength += e.length
             hwc = hardwiredCluster(e, fourtaxa)
             sistertofirst = findnext(x -> x == hwc[1], hwc, 2)
         end
+
+        #internallength=round(internallength, digits = dpoints)
         minorcf = exp(-internallength)/3
         majorcf = 1.0 - 2 * minorcf
         qCF = (sistertofirst == 2 ? MVector{3,Float64}(majorcf,minorcf,minorcf) :
               (sistertofirst == 3 ? MVector{3,Float64}(minorcf,majorcf,minorcf) :
                                     MVector{3,Float64}(minorcf,minorcf,majorcf) ))
-        return qCF
+        
+        #kong: writing out the equations
+        #println(internallength)
+        #println(dict[internallength])
+        if symbolic
+            minorcfp = "exp(-$(dict[internallength]))/3"
+            majorcfp = "1-2*$minorcfp"
+        else
+            minorcfp = "exp(-$internallength)/3"
+            majorcfp = "1-2*$minorcfp"
+        end
+        #=to be added to symbolic=#
+        (sistertofirst == 2 ? (qCFp[1]*="$majorcfp",qCFp[2]*="$minorcfp",qCFp[3]*="$minorcfp") :
+        (sistertofirst == 3 ? (qCFp[1]*="$minorcfp",qCFp[2]*="$majorcfp",qCFp[3]*="$minorcfp") :
+                              (qCFp[1]*="$minorcfp",qCFp[2]*="$minorcfp",qCFp[3]*="$majorcfp") ))                      
+        qCFp .*= ")" #kong: end qCF with an closing bracket
+        
+        return qCF, qCFp
     end
+
     ndes > 0 || error("weird: hybrid node has no descendant taxa")
     # by now, there are 1 or 2 taxa below the lowest hybrid
     qCF = MVector{3,Float64}(0.0,0.0,0.0) # mutated later
-    parenthedge = [e for e in hyb.edge if getchild(e) === hyb]
+    #parenthedge = [e for e in hyb.edge if getchild(e) === hyb]
+    parenthedge = [e for e in hyb.edge if PhyloNetworks.getChild(e) === hyb]
     all(h.hybrid for h in parenthedge) || error("hybrid $(hyb.number) has a parent edge that's a tree edge")
     parenthnumber = [p.number for p in parenthedge]
     nhe = length(parenthedge)
     if ndes == 1 # weighted qCFs average of the nhe (often = 2) displayed networks
         # inheritance correlation has no impact
         for i in 1:nhe # keep parenthedge[i], remove all others
+            # kong: add + if there are more than a single element
+            if i>1 qCFp .*= "+" end
+            
             gamma = parenthedge[i].gamma
             simplernet = ( i < nhe ? deepcopy(net) : net ) # last case: to save memory allocation
             for j in 1:nhe
@@ -250,49 +276,91 @@ function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorr
                 PN.deletehybridedge!(simplernet, simplernet.edge[pe_index],
                     false,true,false,false,false) # ., unroot=true, ., simplify=false,.
             end
-            qCF .+= gamma .* network_expectedCF_4taxa!(simplernet, fourtaxa, inheritancecorrelation)
+            qCF0,qCFp = network_expectedCF_4taxa!(simplernet, fourtaxa, inheritancecorrelation,qCFp,dict,symbolic)
+            qCF .+= gamma .* qCF0
+            
+            #kong: writing gamma into qCF equations
+            if symbolic qCFp .*= "*$(dict[gamma])" 
+            else qCFp .*= "*$gamma"end
         end
-        return qCF
+        
+        #kong: closing qCFq with a bracket
+        qCFp .*= ")"
+
+        return qCF, qCFp
     end
+
     # by now: 2 descendant below the lowest hybrid node: hardest case
     # weighted qCFs average of 3 networks: 2 displayed, 1 "parental" (unless same parents)
     sameparents = (inheritancecorrelation == 1)
+    #inheritancecorrelation=round(inheritancecorrelation, digits = dpoints)
+    #dict[inheritancecorrelation]="&rho"
+    #dict[oneminusrho] = "1-&rho"
+
     oneminusrho = 1 - inheritancecorrelation
+    #oneminusrho=round(oneminusrho, digits = dpoints)
+    if symbolic 
+        oneminusrhop="1-$(dict[inheritancecorrelation])"
+    else
+        oneminusrhop="1-$inheritancecorrelation"
+    end
+
     hwc = hardwiredCluster(parenthedge[1], fourtaxa)
     sistertofirst = findnext(x -> x == hwc[1], hwc, 2)
     internallength = ( ispolytomy ? 0.0 : funneledge[1].length)
     deepcoalprob = exp(-internallength)
+    deepcoalprob=round(deepcoalprob, digits = dpoints)
+    internallength=round(internallength, digits = dpoints)
+    #dict[deepcoalprob]="e^{-$(dict[internallength])}"
+    if symbolic deepcoalprobp="exp(-$internallength)" end
     # initialize qCF: when the 2 descendants coalesce before reaching the hybrid node
     qCF = (sistertofirst == 2 ? MVector{3,Float64}(1.0-deepcoalprob,0.0,0.0) :
           (sistertofirst == 3 ? MVector{3,Float64}(0.0,1.0-deepcoalprob,0.0) :
                                 MVector{3,Float64}(0.0,0.0,1.0-deepcoalprob) ))
+
+    #kong: deepcoalprobability
+    if symbolic deepcoalprobp = "exp(-$(dict[internallength]))" 
+    else deepcoalprobp = "exp(-$internallength)" end
+    
+    (sistertofirst == 2 ? (qCFp[1]*="(1-$deepcoalprobp)+",qCFp[2]*="",qCFp[3]*="") :
+    (sistertofirst == 3 ? (qCFp[1]*="",qCFp[2]*="(1-$deepcoalprobp)+",qCFp[3]*="") :
+                        (qCFp[1]*="",qCFp[2]*="",qCFp[3]*="(1-$deepcoalprobp)+") ))                                     
+    qCFp .*= ""
+
     # no coalescence on cut-edge: delete it and extract parental networks
     ispolytomy || PN.shrinkedge!(net, funneledge[1])
     # shrinkedge! requires PhyloNetworks v0.15.2
-    childedge = [e for e in hyb.edge if getparent(e) === hyb]
+    childedge = [e for e in hyb.edge if PN.getParent(e) === hyb]
     length(childedge) == 2 ||
       error("2-taxon subtree, but not 2 child edges after shrinking the cut edge.")
-    all(getchild(e).leaf for e in childedge) ||
+    all(PN.getChild(e).leaf for e in childedge) ||
       error("2-taxon subtree, cut-edge shrunk, but the 2 edges aren't both external")
     childnumber = [e.number for e in childedge]
     for i in 1:nhe
-      weighti = deepcoalprob * parenthedge[i].gamma
+      pgam=parenthedge[i].gamma
+      weighti = deepcoalprob * pgam
+      #kong: round weighti to n digits
+      weighti=round(weighti, digits = dpoints)
+      #dict[weighti]="($(dict[deepcoalprob])*($(dict[pgam])))"
+      
       for j in (sameparents ? i : 1):i # if inheritancecorrelation=1 then i!=j has probability 0
         gammaj = parenthedge[j].gamma
+        #kong: round gammaj to n digits
+        gammaj=round(gammaj, digits = dpoints)
+
         simplernet = ( i < nhe || j < nhe ? deepcopy(net) : net )
         # delete all hybedges other than i & j
         for k in 1:nhe
             (k == i || k ==j) && continue # don't delete hybrid edges i or j
             pe_index = findfirst(e -> e.number == parenthnumber[k], simplernet.edge)
-            PN.deletehybridedge!(simplernet, simplernet.edge[pe_index],
-                false,true,false,false,false) # ., unroot=true,., simplify=false,.
+            PN.deletehybridedge!(simplernet, simplernet.edge[pe_index],false,true,false,false,false) # ., unroot=true,., simplify=false,.
         end
         if i != j
             # detach childedge[2] from hyb and attach it to hyb's parent j
             pej_index = findfirst(e -> e.number == parenthnumber[j], simplernet.edge)
             pej = simplernet.edge[pej_index]
-            pn = getparent(pej)
-            hn = getchild(pej) # hyb node, but in simplernet
+            pn = PN.getParent(pej)
+            hn = PN.getChild(pej) # hyb node, but in simplernet
             ce2_index = findfirst(e -> e.number == childnumber[2], simplernet.edge)
             ce2 = simplernet.edge[ce2_index]
             PN.removeEdge!(hn,ce2)
@@ -300,20 +368,322 @@ function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorr
             ce2.node[hn_index] = pn # ce2.isChild1 remains synchronized
             push!(pn.edge, ce2)
             # then delete hybedge j
-            PN.deletehybridedge!(simplernet, pej,
-                false,true,false,false,false) # ., unroot=true,., simplify=false,.)
+            PN.deletehybridedge!(simplernet, pej, false,true,false,false,false) # ., unroot=true,., simplify=false,.)
+            for e in simplernet.edge
+                e.length=round(e.length, digits = dpoints)
+            end
         end
-        qCF_subnet = network_expectedCF_4taxa!(simplernet, fourtaxa, inheritancecorrelation)
+        #kong: add "+" if there are more than a single element in the equation
+        if i>1 qCFp .*= "+" end
+        #initialize qCFp for qCF_subnet
+        qCFps=["","",""]
+        qCF_subnet, qCFps = network_expectedCF_4taxa!(simplernet, fourtaxa, inheritancecorrelation, qCFps, dict,symbolic)
         if i == j
             prob = weighti * (gammaj * oneminusrho + inheritancecorrelation)
+            prob=round(prob, digits = dpoints)
+
             qCF .+= prob .* qCF_subnet
+           
+        if symbolic
+                qCFp[1] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[1])))"
+                qCFp[2] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[2])))"
+                qCFp[3] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[3])))"
+        else
+                qCFp[1] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[1])))"
+                qCFp[2] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[2])))"
+                qCFp[3] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[3])))"
+        end
         else # add subnetwork with flipped assignment of the 2 taxa to parents i & j
             flipped_ij = (sistertofirst == 2 ? [1,3,2] :
                          (sistertofirst == 3 ? [3,2,1] : [2,1,3] ))
             prob = weighti * gammaj * oneminusrho
+            prob=round(prob, digits = dpoints)
+
             qCF .+= prob .* (qCF_subnet .+ qCF_subnet[flipped_ij])
+            #println("qCF_subnet=$qCF_subnet")
+            #println("qCFps=$qCFps")
+        if symbolic
+            qCFp[1] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[1])+$(qCFps[flipped_ij[1]])))"
+            qCFp[2] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[2])+$(qCFps[flipped_ij[2]])))"
+            qCFp[3] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[3])+$(qCFps[flipped_ij[3]])))"
+        else
+            qCFp[1] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[1])+$(qCFps[flipped_ij[1]])))"
+            qCFp[2] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[2])+$(qCFps[flipped_ij[2]])))"
+            qCFp[3] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[3])+$(qCFps[flipped_ij[3]])))"
+        end
         end
       end
     end
-    return qCF
+    
+    qCFp .*= ")"
+    
+    return qCF, qCFp
 end
+
+
+"""
+    readTopologyrand(newick::AbstractString; dpoints=5::Integer)
+
+Generate random parameter values (0<x<1) for edge lengths and inheritance probabilities and assign them to the provided newick.
+"""
+function readTopologyrand(newick::AbstractString)  
+    net=PN.readTopology(newick)
+    hybnodenum=Int[]
+    h=length(net.hybrid)
+    hh=0
+    gam=[]
+
+    #generate arbitrary branch lengths for each edge and assign them
+    for e in net.edge
+        val=rand(Uniform(1,5))
+        val=round(val, digits = dpoints)
+        e.length=val
+    end
+    
+    #generate arbitrary gamma values 
+    while hh<h
+        hh+=1
+        val=rand()
+        val=round(val, digits = dpoints)
+        push!(gam,val)
+    end
+    
+    #identify which node number are hybrid nodes
+    for e in net.edge
+        if e.hybrid
+            child=PhyloNetworks.getChild(e)
+            push!(hybnodenum,child.number)
+        end
+    end
+
+    #remove duplications and make sure it matches with h in the input newick
+    hybnodenum=unique(hybnodenum)
+    numhybrid=length(hybnodenum)
+    numhybrid==h || error("Number of hybrid nodes does not match with number of hybrids in the HybridNetwork.")
+    
+    #assign gamma to hybrid edges
+    for j in 1:numhybrid
+        hybnode=hybnodenum[j]
+        i=1
+        for e in net.edge
+            child=PhyloNetworks.getChild(e)
+            if child.number==hybnode
+                if i==1
+                    e.gamma=gam[j]
+                    i+=1
+                elseif i==2
+                    val=1-gam[j]
+                    val=round(val, digits = dpoints)
+                    e.gamma=val
+                else
+                    error("There are three incoming edge at hybrid node number $(child.num)")
+                end
+            end 
+        end
+    end
+    
+    return net
+end
+
+
+
+function dictionary(net,inheritancecorrelation)
+##########BEGINNING OF DISCTIONARY CONSTRUCTION##########E
+    #kong: create a dictionary of parameter labels to values (tau and gamma)
+    dict=Dict()
+    #branch length => t_{branch id}
+    for e in net.edge
+        enum=e.number
+        e.length=round(e.length,digits=dpoints)
+        dict[e.length] = "t_{$enum}" #*-_-*#       
+    end
+    
+    for i in 1:length(net.edge)
+        for j in 2:length(net.edge)
+            e1=net.edge[i]
+            e2=net.edge[j]
+            if e1==e2 break 
+            else 
+            length=round(sum([e1.length,e2.length]), digits = dpoints)
+            dict[length] = "t_{$i}-t_{$j}" #*-_-*#
+            end
+        end
+    end
+    for i in 1:length(net.edge)
+        for j in 2:length(net.edge)
+            for k in 3:length(net.edge)
+                e1=net.edge[i]
+                e1.length=round(e1.length, digits = dpoints)
+                e2=net.edge[j]
+                e2.length=round(e2.length, digits = dpoints)
+                e3=net.edge[k]
+                e3.length=round(e3.length, digits = dpoints)
+                length=round(sum([e1.length,e2.length,e3.length]), digits = dpoints)
+                dict[length] = "t_{$i}-t_{$j}-t_{$k}" #*-_-*#
+            end
+        end
+    end
+    for i in 1:length(net.edge)
+        for j in 2:length(net.edge)
+            for k in 3:length(net.edge)
+                for l in 4:length(net.edge)
+                    e1=net.edge[i]
+                    e2=net.edge[j]
+                    e3=net.edge[k]
+                    e4=net.edge[l]
+                    length=round(sum([e1.length,e2.length,e3.length,e4.length]), digits = dpoints)
+                    dict[length] = "t_{$i}-t_{$j}-t_{$k}-t_{$l}" #*-_-*#
+                end
+            end
+        end
+    end
+    
+    #dictionary for gamma
+    hybnodenum=[]
+    for n in net.node
+        if n.hybrid push!(hybnodenum,n.number) end
+    end
+    lhybridnodenum=length(hybnodenum)
+    
+    for j in 1:lhybridnodenum
+        hybnode=hybnodenum[j]
+        i=1
+        for e in net.edge
+            child=PhyloNetworks.getChild(e)
+            if child.number==hybnode
+                e.gamma=round(e.gamma, digits = dpoints)
+                if i==1 dict[e.gamma] = "r_{$j}"
+                    i+=1
+                elseif i==2
+                    dict[e.gamma] = "(1-r_{$j})"
+                else
+                    println("there are tree incoming edge at hybrid node number $(child.num)")
+                end
+            end 
+        end
+    end
+
+    inheritancecorrelation=round(inheritancecorrelation, digits = dpoints)
+    oneminusrho = 1 - inheritancecorrelation
+    oneminusrho=round(oneminusrho, digits = dpoints)
+
+    dict[inheritancecorrelation]="&rho"
+    dict[oneminusrho] = "1-&rho"
+  
+    #kong: check if there are redundant keys in dictionary. If so, regenerate parameter sets using readTopologyrand()
+    x=collect(keys(dict)) 
+    length(unique(x))==length(dict) || error("multiple keys present in the dictionary")
+
+    ##########END OF DISCTIONARY CONSTRUCTION##########E
+
+    return dict
+end
+
+
+function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
+    df0=DataFrame(Split=String[], CF0=Float64[])
+    df1=DataFrame(Split=String[], CF1=String[], CF11=Float64[])
+    df2=DataFrame(Split=String[], CF2=String[], CF21=String[], CF22=Float64[])
+
+    #1. df=split, val1, val2, val3
+    quartet,taxa,df=network_expectedCF(net,printCFs=true)
+    numquartet=length(quartet)
+    for i in 1:numquartet
+        l1=taxa[quartet[i].taxonnumber[1]]
+        l2=taxa[quartet[i].taxonnumber[2]]
+        l3=taxa[quartet[i].taxonnumber[3]]
+        l4=taxa[quartet[i].taxonnumber[4]]
+        splitt1="$l1$l2|$l3$l4"
+        splitt2="$l1$l3|$l2$l4"
+        splitt3="$l1$l4|$l2$l3"
+        push!(df0, (splitt1,quartet[i].data[1]))
+        push!(df0, (splitt2,quartet[i].data[2]))
+        push!(df0, (splitt3,quartet[i].data[3]))
+    end
+    
+    #2. see if symbolic=false returns the same value as 1
+    #get df=split val1' val2' val3'
+    
+    quartet,taxa,df=network_expectedCF(net,symbolic=false, printCFs=true)
+    for i in 1:(size(df)[1])
+        val=eval(Meta.parse(df[i,2]))
+        val=round(val, digits = dpoints)
+        push!(df1,(df[i,1],df[i,2],val))
+    end
+    ##check if val1,2,3=val1',2',3'
+
+    #3 get csv with symbolic=true
+    quartet,taxa,df=network_expectedCF(net,symbolic=true, printCFs=true)
+    dict=dictionary(net,inh)
+    dict=Dict(value => key for (key, value) in dict)
+    #display(dict)
+    #display(df)
+    
+    nedge=length(net.edge)
+    for i in 1:(size(df)[1])
+        transformed=df[i,2] 
+        for t1 in 1:nedge
+            for t2 in 1:nedge
+                for t3 in 1:nedge
+                    for t4 in 1:nedge 
+                        for r1 in 1:(length(net.hybrid))
+                            transformed=replace(transformed, "exp(-t_{$t1})" => "exp(-$(dict["t_{$t1}"]))") 
+                            transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"]))")                        
+                            transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2}-t_{$t3})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"])-$(dict["t_{$t3}"]))")                        
+                            transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2}-t_{$t3}-t_{$t4})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"])-$(dict["t_{$t3}"])-$(dict["t_{$t4}"]))")                        
+
+                            transformed=replace(transformed, "(1-r_{$r1})" => "$(dict["(1-r_{$r1})"])") 
+                            transformed=replace(transformed, "r_{$r1}" => "$(dict["r_{$r1}"])") 
+
+                            transformed=replace(transformed, "rho" => inh) 
+                        end
+                    end
+                end
+            end
+        end
+
+        val=eval(Meta.parse(transformed))
+        val=round(val, digits = dpoints)
+        push!(df2, (df[i,1],df[i,2],transformed,val))       
+    end
+
+    #use dict to replace symbols with values
+    #get df=split val1'' val2'' val3''
+
+    finaldf = outerjoin(df0, df1, df2, on = :Split)
+
+    for i in 1:(size(df)[1])
+        abs(finaldf[i,2]-finaldf[i,4]) < threshold || error("values do not match")
+        abs(finaldf[i,2]-finaldf[i,7]) < threshold || error("values do not match")
+        abs(finaldf[i,4]-finaldf[i,4]) < threshold || error("values do not match")
+    end
+    
+    if(savecsv) CSV.write("test.csv", finaldf, header=true) end
+    ##check if val1,2,3=val1',2',3'=val1'',2'',3''
+
+    return finaldf
+end
+
+
+
+
+
+#=
+tops=readlines("topologies_n5_l1.txt")
+error=0
+for i in 1:248
+    println("Now at the network $i")
+    j=0
+    while j<1
+        try 
+            net0=readTopologyrand(tops[i])
+            test(net0)
+            j+=1        
+        catch
+            error+=1
+            continue
+        end
+    end
+end
+println(j,error)
+=#
