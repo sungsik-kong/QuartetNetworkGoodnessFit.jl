@@ -14,10 +14,9 @@ goodness of fit of a phylogenetic network to data on subsets of 4 tips.
 It depends on the [PhyloNetworks](https://github.com/JuliaPhylo/PhyloNetworks.jl)
 package.
 
-## printing and writing qCFs
+## printing and writing qCFs equations
 ### Input
-
-A tree or network topology with edge lengths ($\tau$) (in coalescent unit) and inheritance probability ($\gamma$) specified written in Newick format. This topology can be read in using `readTopology` from `PhyloNetworks`. In case no parameter information is available, a newick without $\tau$ and $\gamma$ can be read using the function `readTopologyrand`. See below for example.
+A tree or network topology with edge lengths (in coalescent unit) and inheritance probability specified written in Newick format. This topology can be read in using `readTopology` from `PhyloNetworks`. In case no parameter information is available, a newick without $\tau$ and $\gamma$ can be read using the function `readTopologyrand`. See below for example.
 ```
 #parameters available
 net=readTopology("((a:4.20458,(b:4.88952,((d:2.63556,(c:3.6052,e:3.42833):4.80495):4.4157)#H5:3.19142::0.36252):1.0612):2.64775,#H5:1.33688::0.63748);")
@@ -33,6 +32,8 @@ tip labels: a, b, d, c, ...
 ((a:3.283,(b:1.945,((d:2.583,(c:1.909,e:3.283):2.008):2.445)#H5:4.3::0.037):1.013):2.636,#H5:4.824::0.963);
 ```
 ### Output
+network_expectedCF(net,savenet=false,savecsv=false,printCFs=true,symbolic=true)
+Some updates were made on the function `network_expectedCF` and additional options were added. Four of the added may be particularly useful in writing the quartet CF equations, namely `savenet`, `savecsv`, `printCFs`, and `symbolic`.
 
 ## citing
 
