@@ -33,7 +33,7 @@ tip labels: a, b, d, c, ...
 ```
 ### Output
 network_expectedCF(net,savenet=false,savecsv=false,printCFs=true,symbolic=true)
-Some updates were made on the function `network_expectedCF` and fice additional options were added, namely `filename`, `savenet`, `savecsv`, `printCFs`, and `symbolic`, .
+Some updates were made on the function `network_expectedCF` and fice additional options were added, namely `filename`, `savenet`, `savecsv`, `printCFs`, and `symbolic`. By default the latter four options are set `false`, which results in the original `network_expectedCF`.
 
 ## citing
 
