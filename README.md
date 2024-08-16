@@ -18,7 +18,14 @@ package.
 ### Input
 A tree or network topology with edge lengths (in coalescent unit) and inheritance probability specified written in Newick format. This topology can be read in using `readTopology` from `PhyloNetworks`.
 ```
-net=readTopology("((a:4.201,(b:4.828,((d:2.633,(c:3.641,e:3.412):4.804):4.417)#H5:3.191::0.36):1.061:2.647,#H5:1.33::0.64);")
+using PhyloNetworks
+net=readTopology("((a:4.201,(b:4.828,((d:2.633,(c:3.641,e:3.412):4.804):4.417)#H5:3.191::0.36):1.061:2.647,#H5:1.33::0.64));")
+
+HybridNetwork, Rooted Network
+10 edges
+10 nodes: 5 tips, 1 hybrid nodes, 4 internal tree nodes.
+tip labels: a, b, d, c, ...
+(a:4.201,(b:4.828,#H5:3.191::0.36):1.061,((d:2.633,(c:3.641,e:3.412):4.804):4.417)#H5:1.33::0.64);
 ```
 
 In case no parameter information is available, a newick without $\tau$ and $\gamma$ can be read using the function `readTopologyrand`. This function will assign random values to the parameters.
@@ -108,7 +115,7 @@ data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856]], ["a", "b", 
   14 │ bd|ce   (1-2*exp(-t_{6})/3)
   15 │ be|cd   (exp(-t_{6})/3))
 ```
-Note the network topology with parameters are written on the top of the output to see what t_{#} or r_{#} corresponds to in the topology. The network topology can be stored at the working directory by setting `savenet=true`. Default network name is `$filename.net.txt`. $filename can be changed by setting the option `filename=$desiredfilename`. By default `$filename=result`.
+Note the network topology with parameters are written on the top of the output to see what t_{#} or r_{#} corresponds to in the topology. The network topology can be stored at the working directory by setting `savenet=true`. Default network name is `$filename.net.txt`. $filename can be changed by setting the option `filename=$desiredfilename`. By default `$filename="result"`.
 
 To access the entire equation, set `savecsv=true` to store the DataFrame in a `csv` file. This `csv` file is stored at the working directory with the default name `$filename.csv`.
 
