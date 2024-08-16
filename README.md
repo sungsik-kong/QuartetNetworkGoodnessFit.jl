@@ -108,7 +108,9 @@ data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856]], ["a", "b", 
   14 │ bd|ce   (1-2*exp(-t_{6})/3)
   15 │ be|cd   (exp(-t_{6})/3))
 ```
-Note the network topology with parameters are written on the top of the output to see what t_{#} or r_{#} corresponds to in the topology. The network topology can be stored at the working directory by setting `savenet=true`. Default network name is `$filename.net.txt`. Sometimes the equation does not display the entire equation. Set `savecsv=true` to store the bottom DataFrame in a `csv` file and is stored at the working directory with the default name `$filename.csv`. $filename is set as `result` by default but can be changed using option `filename=$desiredfilename`.
+Note the network topology with parameters are written on the top of the output to see what t_{#} or r_{#} corresponds to in the topology. The network topology can be stored at the working directory by setting `savenet=true`. Default network name is `$filename.net.txt`. $filename can be changed by setting the option `filename=$desiredfilename`. By default `$filename=result`.
+
+To access the entire equation, set `savecsv=true` to store the DataFrame in a `csv` file. This `csv` file is stored at the working directory with the default name `$filename.csv`.
 
 ## citing
 
