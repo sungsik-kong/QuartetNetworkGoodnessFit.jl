@@ -50,7 +50,7 @@ data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856], 4-taxon set 
 data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856]], ["a", "b", "c", "d", "e"])
 ```
 
-Set `printCFs=true` to see the equation that computes the quartet concordance factor in `network_expectedCF`.
+Set `printCFs=true` to see the equation that computes the quartet concordance factor in `network_expectedCF` as a DataFrame.
 ```
 julia> network_expectedCF(net,savenet=false,savecsv=false,printCFs=true,symbolic=false)
 Topology: ((a:3.28261,(b:1.94464,((d:2.58257,(c:1.9092,e:3.28323):2.00782):2.44487)#H5:4.29999::0.03679):1.0132):2.6364,#H5:4.82378::0.96321);
@@ -79,7 +79,7 @@ data: [0.0447603628649856, 0.9104792742700288, 0.0447603628649856]], ["a", "b", 
   14 │ bd|ce   (1-2*exp(-2.00782)/3)
   15 │ be|cd   (exp(-2.00782)/3))
 ```
-To have to equation that does not contain numerical values but symbolic names (i.e., t_{#} for edge lengths, r_{#} for inheritance probabilities, and rho for the inheritance correlation, set option `symbolic=true`.
+To have the equations that does not contain numerical values but parameter names (i.e., t_{#} for edge lengths, r_{#} for inheritance probabilities, and rho for the inheritance correlation, set option `symbolic=true`.
 ```
 julia> network_expectedCF(net,savenet=false,savecsv=false,printCFs=true,symbolic=true)
 Topology: ((a:t_{1},(b:t_{2},((d:t_{3},(c:t_{4},e:t_{5}):t_{6}):t_{7})#H5:t_{8}::r_{1}):t_{9}):t_{10},#H5:t_{11}::(1-r_{1}));
