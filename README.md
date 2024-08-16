@@ -18,13 +18,11 @@ package.
 ### Input
 A tree or network topology with edge lengths (in coalescent unit) and inheritance probability specified written in Newick format. This topology can be read in using `readTopology` from `PhyloNetworks`.
 ```
-#parameters available
-net=readTopology("((a:4.20458,(b:4.88952,((d:2.63556,(c:3.6052,e:3.42833):4.80495):4.4157)#H5:3.19142::0.36252):1.0612):2.64775,#H5:1.33688::0.63748);")
+net=readTopology("((a:4.201,(b:4.828,((d:2.633,(c:3.641,e:3.412):4.804):4.417)#H5:3.191::0.36):1.061:2.647,#H5:1.33::0.64);")
 ```
 
 In case no parameter information is available, a newick without $\tau$ and $\gamma$ can be read using the function `readTopologyrand`. This function will assign random values to the parameters.
 ```
-#parameters unavailable
 net=readTopologyrand("((a,(b,((d,(c,e)))#H5)),#H5);")
 HybridNetwork, Rooted Network
 11 edges
@@ -33,7 +31,6 @@ tip labels: a, b, d, c, ...
 ((a:3.283,(b:1.945,((d:2.583,(c:1.909,e:3.283):2.008):2.445)#H5:4.3::0.037):1.013):2.636,#H5:4.824::0.963);
 ```
 ### Output
-network_expectedCF(net,savenet=false,savecsv=false,printCFs=true,symbolic=true)
 Some updates were made on the function `network_expectedCF` and fice additional options were added, namely `filename`, `savenet`, `savecsv`, `printCFs`, and `symbolic`. By default the latter four options are set `false`, which results in the original `network_expectedCF`. 
 ```
 julia> network_expectedCF(net)
