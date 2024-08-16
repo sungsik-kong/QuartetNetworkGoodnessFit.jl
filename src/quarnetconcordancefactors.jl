@@ -73,11 +73,10 @@ function network_expectedCF(net::HybridNetwork;
         end
     end
     
-    #if(printCFs) display(df) end #*-_-*#
     if(savenet) open("$filename.net.txt", "w") do file write(file, eNewick) end end
     if(savecsv) CSV.write("$filename.csv", df, header=false) end #*-_-*#   
     
-    if printCFs
+    if(printCFs)
         println("Topology: $eNewick")
         return quartet, taxa, df
     else
@@ -132,7 +131,6 @@ function network_expectedCF!(quartet::PN.QuartetT{MVector{3,Float64}},
     end
 
     f=taxa[quartet.taxonnumber]
-    
     push!(df, ("$(f[1])$(f[2])|$(f[3])$(f[4])", "$(qCFp[1])"))
     push!(df, ("$(f[1])$(f[3])|$(f[2])$(f[4])", "$(qCFp[2])"))         
     push!(df, ("$(f[1])$(f[4])|$(f[2])$(f[3])", "$(qCFp[3])"))
@@ -240,6 +238,7 @@ function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorr
         #kong: writing out the equations
         #println(internallength)
         #println(dict[internallength])
+        internallength=round(internallength, digits = dpoints)
         if symbolic
             minorcfp = "exp(-$(dict[internallength]))/3"
             majorcfp = "1-2*$minorcfp"
@@ -387,13 +386,17 @@ function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorr
             qCF .+= prob .* qCF_subnet
            
         if symbolic
-                qCFp[1] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[1])))"
-                qCFp[2] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[2])))"
-                qCFp[3] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[3])))"
+            for i in 1:3
+                qCFp[i] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[i])))"
+                #qCFp[2] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[2])))"
+                #CFp[3] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[3])))"
+            end
         else
-                qCFp[1] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[1])))"
-                qCFp[2] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[2])))"
-                qCFp[3] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[3])))"
+            for i in 1:3
+                qCFp[i] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[i])))"
+                #qCFp[2] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[2])))"
+                #qCFp[3] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[3])))"
+            end
         end
         else # add subnetwork with flipped assignment of the 2 taxa to parents i & j
             flipped_ij = (sistertofirst == 2 ? [1,3,2] :
@@ -405,13 +408,17 @@ function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorr
             #println("qCF_subnet=$qCF_subnet")
             #println("qCFps=$qCFps")
         if symbolic
-            qCFp[1] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[1])+$(qCFps[flipped_ij[1]])))"
-            qCFp[2] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[2])+$(qCFps[flipped_ij[2]])))"
-            qCFp[3] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[3])+$(qCFps[flipped_ij[3]])))"
+            for i in 1:3
+                qCFp[i] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[i])+$(qCFps[flipped_ij[i]])))"
+                #qCFp[2] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[2])+$(qCFps[flipped_ij[2]])))"
+                #qCFp[3] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[3])+$(qCFps[flipped_ij[3]])))"
+            end
         else
-            qCFp[1] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[1])+$(qCFps[flipped_ij[1]])))"
-            qCFp[2] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[2])+$(qCFps[flipped_ij[2]])))"
-            qCFp[3] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[3])+$(qCFps[flipped_ij[3]])))"
+            for i in 1:3
+                qCFp[i] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[i])+$(qCFps[flipped_ij[i]])))"
+                #qCFp[2] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[2])+$(qCFps[flipped_ij[2]])))"
+                #qCFp[3] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[3])+$(qCFps[flipped_ij[3]])))"
+            end
         end
         end
       end
@@ -539,6 +546,23 @@ function dictionary(net,inheritancecorrelation)
             end
         end
     end
+    for i in 1:length(net.edge)
+        for j in 2:length(net.edge)
+            for k in 3:length(net.edge)
+                for l in 4:length(net.edge)
+                    for a in 5:length(net.edge)
+                        e1=net.edge[i]
+                        e2=net.edge[j]
+                        e3=net.edge[k]
+                        e4=net.edge[l]
+                        e5=net.edge[a]
+                        length=round(sum([e1.length,e2.length,e3.length,e4.length,e5.length]), digits = dpoints)
+                        dict[length] = "t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$a}" #*-_-*#
+                    end
+                end
+            end
+        end
+    end   
     
     #dictionary for gamma
     hybnodenum=[]
@@ -628,16 +652,19 @@ function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
             for t2 in 1:nedge
                 for t3 in 1:nedge
                     for t4 in 1:nedge 
-                        for r1 in 1:(length(net.hybrid))
-                            transformed=replace(transformed, "exp(-t_{$t1})" => "exp(-$(dict["t_{$t1}"]))") 
-                            transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"]))")                        
-                            transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2}-t_{$t3})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"])-$(dict["t_{$t3}"]))")                        
-                            transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2}-t_{$t3}-t_{$t4})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"])-$(dict["t_{$t3}"])-$(dict["t_{$t4}"]))")                        
+                        for t5 in 1:nedge 
+                            for r1 in 1:(length(net.hybrid))
+                                transformed=replace(transformed, "exp(-t_{$t1})" => "exp(-$(dict["t_{$t1}"]))") 
+                                transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"]))")                        
+                                transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2}-t_{$t3})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"])-$(dict["t_{$t3}"]))")                        
+                                transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2}-t_{$t3}-t_{$t4})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"])-$(dict["t_{$t3}"])-$(dict["t_{$t4}"]))")                        
+                                transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2}-t_{$t3}-t_{$t4}-t_{$t5})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"])-$(dict["t_{$t3}"])-$(dict["t_{$t4}"])-$(dict["t_{$t5}"])")                        
 
-                            transformed=replace(transformed, "(1-r_{$r1})" => "$(dict["(1-r_{$r1})"])") 
-                            transformed=replace(transformed, "r_{$r1}" => "$(dict["r_{$r1}"])") 
+                                transformed=replace(transformed, "(1-r_{$r1})" => "$(dict["(1-r_{$r1})"])") 
+                                transformed=replace(transformed, "r_{$r1}" => "$(dict["r_{$r1}"])") 
 
-                            transformed=replace(transformed, "rho" => inh) 
+                                transformed=replace(transformed, "rho" => inh) 
+                            end
                         end
                     end
                 end
