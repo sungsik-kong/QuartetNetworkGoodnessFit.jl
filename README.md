@@ -19,7 +19,13 @@ package.
 A tree or network topology with edge lengths (in coalescent unit) and inheritance probability specified written in Newick format. This topology can be read in using `readTopology` from `PhyloNetworks`.
 ```
 using PhyloNetworks
-net=readTopology("((a:4.201,(b:4.828,((d:2.633,(c:3.641,e:3.412):4.804):4.417)#H5:3.191::0.36):1.061:2.647,#H5:1.33::0.64);")
+net=readTopology("((a:4.201,(b:4.828,((d:2.633,(c:3.641,e:3.412):4.804):4.417)#H5:3.191::0.36):1.061:2.647,#H5:1.33::0.64));")
+
+HybridNetwork, Rooted Network
+10 edges
+10 nodes: 5 tips, 1 hybrid nodes, 4 internal tree nodes.
+tip labels: a, b, d, c, ...
+(a:4.201,(b:4.828,#H5:3.191::0.36):1.061,((d:2.633,(c:3.641,e:3.412):4.804):4.417)#H5:1.33::0.64);
 ```
 
 In case no parameter information is available, a newick without $\tau$ and $\gamma$ can be read using the function `readTopologyrand`. This function will assign random values to the parameters.
