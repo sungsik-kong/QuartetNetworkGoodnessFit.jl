@@ -676,7 +676,7 @@ error=0
 k=0
 for i in 1:248
     println("Now at the network $i")
-    j=0
+    rep=0
     while rep<1
         try 
             net0=readTopologyrand(tops[i])
