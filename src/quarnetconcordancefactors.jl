@@ -56,7 +56,7 @@ function network_expectedCF(net::HybridNetwork;
         nextstar = Integer(ceil(nquarnets_perstar))
     end
     for qi in 1:numq
-        network_expectedCF!(quartet[qi], net, taxa, taxonnumber, inheritancecorrelation, printCFs, df, symbolic, dict)
+        network_expectedCF!(quartet[qi], net, taxa, taxonnumber, inheritancecorrelation, df, symbolic, dict)
         if showprogressbar && qi >= nextstar
             print("*")
             stars += 1
@@ -104,7 +104,7 @@ function network_expectedCF!(quartet::PN.QuartetT{MVector{3,Float64}},
                                 taxa, 
                                 taxonnumber, 
                                 inheritancecorrelation, 
-                                printCFs,
+                                #printCFs,
                                 df,
                                 symbolic,
                                 dict)
@@ -444,7 +444,8 @@ function readTopologyrand(newick::AbstractString)
 
     #generate arbitrary branch lengths for each edge and assign them
     for e in net.edge
-        val=rand(Uniform(1,5))
+        #val=rand(Uniform(1,5))
+        val=rand()+1
         val=round(val, digits = dpoints)
         e.length=val
     end

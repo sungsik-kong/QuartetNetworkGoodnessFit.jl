@@ -12,7 +12,7 @@ using StaticArrays
 using Statistics: mean, median
 using StatsFuns: normccdf, chisqccdf, betacdf, betaccdf
 using CSV
-using Distributions
+#using Distributions
 
 const PN = PhyloNetworks # for easier use of internals
 
