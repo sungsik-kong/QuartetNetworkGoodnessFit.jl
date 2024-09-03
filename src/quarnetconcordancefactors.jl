@@ -19,6 +19,7 @@ function network_expectedCF(net::HybridNetwork;
     #println("&rho (inheritancecorrelation) = $inheritancecorrelation")
     #dpoints=5::Integer = decimal points for parameters
 #   df = DataFrame(Split=String[], Qnet=String[], CF=String[]) #*-_-*#
+    if(symbolic) net=readTopologyrand(PN.writeTopology(net)) end
     df = DataFrame(Split=String[], CF=String[]) #*-_-*#
     dict=dictionary(net,inheritancecorrelation)
 
