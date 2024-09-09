@@ -15,10 +15,12 @@ function network_expectedCF(net::HybridNetwork;
                             savenet=false::Bool,
                             symbolic=false::Bool,
                             savecsv=false::Bool,
+                            maca=false::Bool,
                             filename="result"::AbstractString)
     #println("&rho (inheritancecorrelation) = $inheritancecorrelation")
     #dpoints=5::Integer = decimal points for parameters
 #   df = DataFrame(Split=String[], Qnet=String[], CF=String[]) #*-_-*#
+    if(maca) symbolic=true end
     if(symbolic) net=readTopologyrand(PN.writeTopology(net)) end
     df = DataFrame(Split=String[], CF=String[]) #*-_-*#
     dict=dictionary(net,inheritancecorrelation)
@@ -73,6 +75,178 @@ function network_expectedCF(net::HybridNetwork;
             if e.gamma!==1.0 eNewick=replace(eNewick,"$(e.gamma)"=>"$(dict[e.gamma])") end
         end
     end
+
+    ##For Macaulay2
+    function dictionarymaca(net)
+        dict=Dict()
+        edgenumber=length(net.edge)
+        retnumber=length(net.hybrid)
+        for i in 1:edgenumber
+            dict["exp(-t_{$i})"] = "X$i" #*-_-*#
+        end
+        for i in 1:edgenumber
+            for j in 1:edgenumber
+                dict["exp(-t_{$i}-t_{$j})"] = "(X$i*X$j)" #*-_-*#
+            end
+        end
+        for i in 1:edgenumber
+            for j in 1:edgenumber
+                for k in 1:edgenumber
+                    dict["exp(-t_{$i}-t_{$j}-t_{$k})"] = "(X$i*X$j*X$k)" #*-_-*#
+                end
+            end
+        end
+        for i in 1:edgenumber
+            for j in 1:edgenumber
+                for k in 1:edgenumber
+                    for l in 1:edgenumber
+                        dict["exp(-t_{$i}-t_{$j}-t_{$k}-t_{$l})"] = "(X$i*X$j*X$k*X$l)" #*-_-*#
+                    end
+                end
+            end
+        end
+        for i in 1:edgenumber
+            for j in 1:edgenumber
+                for k in 1:edgenumber
+                    for l in 1:edgenumber
+                        for x in 1:edgenumber
+                            dict["exp(-t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$x})"] = "(X$i*X$j*X$k*X$l*X$x)" #*-_-*#
+                        end
+                    end
+                end
+            end
+        end
+        
+        for i in 1:retnumber
+            dict["r_{$i}"] = "R$i" #*-_-*#
+        end
+        
+        return dict
+    end
+    
+    if(maca)
+        dict=dictionarymaca(net)
+        edgenumber=length(net.edge)
+        retnumber=length(net.hybrid)
+
+        for i in 1:size(df)[1]
+            df[i,2]=replace(df[i,2],"rho"=>"0")
+            #=
+            for x in 1:edgenumber
+                for y in 1:edgenumber
+                    for z in 1:edgenumber
+                        for w in 1:edgenumber
+                            for u in 1:edgenumber
+                                for r in 1:retnumber
+                                    df[i,2]=replace(df[i,2],"exp(-t_{$x})"=>"$(dict["exp(-t_{$x})"])")
+                                    df[i,2]=replace(df[i,2],"exp(-t_{$x}-t_{$y})"=>"$(dict["exp(-t_{$x}-t_{$y})"])")
+                                    df[i,2]=replace(df[i,2],"exp(-t_{$x}-t_{$y}-t_{$z})"=>"$(dict["exp(-t_{$x}-t_{$y}-t_{$z})"])")
+                                    df[i,2]=replace(df[i,2],"exp(-t_{$x}-t_{$y}-t_{$z})"=>"$(dict["exp(-t_{$x}-t_{$y}-t_{$z})"])")
+                                    df[i,2]=replace(df[i,2],"rho"=>"0")
+                                    df[i,2]=replace(df[i,2],"r_{$r}"=>"$(dict["r_{$r}"])")
+                                    #df[i,2]=replace(df[i,2],"exp(-t_{$x}-t_{$y}-t_{$z}-t_{$w})"=>"$(dict["exp(-t_{$x}-t_{$y}-t_{$z}-t_{$w})"])")
+                                    #df[i,2]=replace(df[i,2],"exp(-t_{$x}-t_{$y}-t_{$z}-t_{$w}-t_{$u})"=>"$(dict["exp(-t_{$x}-t_{$y}-t_{$z}-t_{$w}-t_{$u})"])")
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            =#
+            string=df[i,2]
+            record=false
+            expressions=String[]
+            expression=""
+            for c in 1:length(string)
+                if SubString(string,c:c)=="e"
+                    record=true
+                    expression=expression*SubString(string,c:c)
+                elseif SubString(string,c:c)==")" && record
+                    expression=expression*SubString(string,c:c)
+                    push!(expressions,expression)
+                    record=false
+                    expression=""
+                elseif record
+                    expression=expression*SubString(string,c:c)
+                else 
+                    continue
+                end
+            end
+
+            for c in 1:length(string)
+                if SubString(string,c:c)=="r"
+                    record=true
+                    expression=expression*SubString(string,c:c)
+                elseif SubString(string,c:c)=="}" && record
+                    expression=expression*SubString(string,c:c)
+                    push!(expressions,expression)
+                    record=false
+                    expression=""
+                elseif record
+                    expression=expression*SubString(string,c:c)
+                else 
+                    continue
+                end
+            end
+            #println(unique(expressions))
+            
+                
+
+            for ex in expressions
+                df[i,2]=replace(df[i,2],ex=>"$(dict[ex])")
+            end
+        end
+
+
+        
+        
+        params=[]
+        for i in 1:size(df)[1]
+            for x in 1:edgenumber
+                for y in 1:retnumber                
+                    if(contains(df[i,2], "X$x"))
+                        push!(params,"X$x")
+                    end
+                    if(contains(df[i,2], "R$y"))
+                        push!(params,"R$y")
+                    end    
+                end
+            end
+        end
+
+        params=unique(params)
+        open("net.m2.txt", "w") do file
+            str="R = QQ["
+            for i in params 
+                str=str*i*","
+            end
+
+            str=str*"C_1..C_$(size(df)[1])]\n"
+            str=str*"I = ideal(\n"
+            for i in 1:size(df)[1]
+                if i<size(df)[1]
+                    str=str*"$(df[i,2])-C_$i,\n"
+                else
+                    str=str*"$(df[i,2])-C_$i)\n"
+                end
+            end
+            str=str*"G = eliminate (I, {"
+            for i in 1:length(params)
+                if i<length(params)
+                    str=str*"$(params[i]),"
+                else
+                    str=str*"$(params[i])})\n"
+                end
+            end
+            str=str*"S = QQ[C_1..C_$(size(df)[1])]\n"
+            str=str*"J = sub(G,S)\n"
+            str=str*"dim J"
+            
+            write(file, str)
+        end
+    end
+    
+
     
     if(savenet) open("$filename.net.txt", "w") do file write(file, eNewick) end end
     if(savecsv) CSV.write("$filename.csv", df, header=false) end #*-_-*#   
@@ -673,6 +847,8 @@ function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
             end
         end
 
+        
+
         val=eval(Meta.parse(transformed))
         val=round(val, digits = dpoints)
         push!(df2, (df[i,1],df[i,2],transformed,val))       
@@ -719,4 +895,42 @@ for i in 1:248
     end
 end
 println(k,error)
+=#
+
+#=
+record=false
+expressions=String[]
+expression=""
+for i in 1:length(string)
+    if SubString(string,i:i)=="e"
+        record=true
+        expression=expression*SubString(string,i:i)
+    elseif SubString(string,i:i)==")" && record
+        expression=expression*SubString(string,i:i)
+        push!(expressions,expression)
+        record=false
+        expression=""
+    elseif record
+        expression=expression*SubString(string,i:i)
+    else 
+        continue
+    end
+end
+
+for i in 1:length(string)
+    if SubString(string,i:i)=="r"
+        record=true
+        expression=expression*SubString(string,i:i)
+    elseif SubString(string,i:i)=="}" && record
+        expression=expression*SubString(string,i:i)
+        push!(expressions,expression)
+        record=false
+        expression=""
+    elseif record
+        expression=expression*SubString(string,i:i)
+    else 
+        continue
+    end
+end
+println(unique(expressions))
 =#
