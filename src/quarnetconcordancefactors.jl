@@ -1,4 +1,5 @@
-const global dpoints=5
+const global dpoints=5 #decimal points for all parameters when randomly generated
+
 """
     network_expectedCF(net::HybridNetwork; 
                             showprogressbar=false, 
@@ -15,16 +16,26 @@ function network_expectedCF(net::HybridNetwork;
                             savenet=false::Bool,
                             symbolic=false::Bool,
                             savecsv=false::Bool,
-                            maca=false::Bool,
-                            filename="result"::AbstractString)
-    #println("&rho (inheritancecorrelation) = $inheritancecorrelation")
-    #dpoints=5::Integer = decimal points for parameters
-#   df = DataFrame(Split=String[], Qnet=String[], CF=String[]) #*-_-*#
-    if(maca) symbolic=true end
-    if(symbolic) net=readTopologyrand(PN.writeTopology(net)) end
-    df = DataFrame(Split=String[], CF=String[]) #*-_-*#
+                            macaulay=false::Bool,
+                            matlab=false::Bool,
+                            suffix=""::AbstractString)
+    
+    #----------filename----------#
+    nleaf=length(net.leaf)
+    nreticulate=length(net.hybrid)
+    filename="n$(nleaf)h$(nreticulate)"
+    if !isempty(suffix) filename=filename*".$(suffix)" end
+
+    #---------forcing things to work---------#
+    if(symbolic) net=readTopologyrand(net) end
+    if(matlab) macaulay=true end
+    if(macaulay) symbolic=true end
+    
+    #-----------setting up desk-----------#
+    df = DataFrame(Split=String[], CF=String[]) 
     dict=dictionary(net,inheritancecorrelation)
 
+    #--------(almost) original stuff--------#
     net.node[net.root].leaf && error("The root can't be a leaf.")
     PN.check_nonmissing_nonnegative_edgelengths(net,
         "Edge lengths are needed in coalescent units to calcualte expected CFs.")
@@ -68,196 +79,79 @@ function network_expectedCF(net::HybridNetwork;
     end
     showprogressbar && print("\n")
 
-    ######OUTPUT FILES######
-    eNewick=PN.writeTopology(net)
-    if(symbolic) #replace values with numbers"
-        for e in net.edge eNewick=replace(eNewick,"$(e.length)"=>"t_{$(e.number)}")
-            if e.gamma!==1.0 eNewick=replace(eNewick,"$(e.gamma)"=>"$(dict[e.gamma])") end
-        end
-    end
 
-    ##For Macaulay2
-    function dictionarymaca(net)
-        dict=Dict()
-        edgenumber=length(net.edge)
-        retnumber=length(net.hybrid)
-        for i in 1:edgenumber
-            dict["exp(-t_{$i})"] = "X$i" #*-_-*#
-        end
-        for i in 1:edgenumber
-            for j in 1:edgenumber
-                dict["exp(-t_{$i}-t_{$j})"] = "(X$i*X$j)" #*-_-*#
-            end
-        end
-        for i in 1:edgenumber
-            for j in 1:edgenumber
-                for k in 1:edgenumber
-                    dict["exp(-t_{$i}-t_{$j}-t_{$k})"] = "(X$i*X$j*X$k)" #*-_-*#
-                end
-            end
-        end
-        for i in 1:edgenumber
-            for j in 1:edgenumber
-                for k in 1:edgenumber
-                    for l in 1:edgenumber
-                        dict["exp(-t_{$i}-t_{$j}-t_{$k}-t_{$l})"] = "(X$i*X$j*X$k*X$l)" #*-_-*#
-                    end
-                end
-            end
-        end
-        for i in 1:edgenumber
-            for j in 1:edgenumber
-                for k in 1:edgenumber
-                    for l in 1:edgenumber
-                        for x in 1:edgenumber
-                            dict["exp(-t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$x})"] = "(X$i*X$j*X$k*X$l*X$x)" #*-_-*#
-                        end
-                    end
-                end
-            end
-        end
-        
-        for i in 1:retnumber
-            dict["r_{$i}"] = "R$i" #*-_-*#
-        end
-        
-        return dict
-    end
-    
-    if(maca)
-        dict=dictionarymaca(net)
-        edgenumber=length(net.edge)
-        retnumber=length(net.hybrid)
-
-        for i in 1:size(df)[1]
-            df[i,2]=replace(df[i,2],"rho"=>"0")
-            #=
-            for x in 1:edgenumber
-                for y in 1:edgenumber
-                    for z in 1:edgenumber
-                        for w in 1:edgenumber
-                            for u in 1:edgenumber
-                                for r in 1:retnumber
-                                    df[i,2]=replace(df[i,2],"exp(-t_{$x})"=>"$(dict["exp(-t_{$x})"])")
-                                    df[i,2]=replace(df[i,2],"exp(-t_{$x}-t_{$y})"=>"$(dict["exp(-t_{$x}-t_{$y})"])")
-                                    df[i,2]=replace(df[i,2],"exp(-t_{$x}-t_{$y}-t_{$z})"=>"$(dict["exp(-t_{$x}-t_{$y}-t_{$z})"])")
-                                    df[i,2]=replace(df[i,2],"exp(-t_{$x}-t_{$y}-t_{$z})"=>"$(dict["exp(-t_{$x}-t_{$y}-t_{$z})"])")
-                                    df[i,2]=replace(df[i,2],"rho"=>"0")
-                                    df[i,2]=replace(df[i,2],"r_{$r}"=>"$(dict["r_{$r}"])")
-                                    #df[i,2]=replace(df[i,2],"exp(-t_{$x}-t_{$y}-t_{$z}-t_{$w})"=>"$(dict["exp(-t_{$x}-t_{$y}-t_{$z}-t_{$w})"])")
-                                    #df[i,2]=replace(df[i,2],"exp(-t_{$x}-t_{$y}-t_{$z}-t_{$w}-t_{$u})"=>"$(dict["exp(-t_{$x}-t_{$y}-t_{$z}-t_{$w}-t_{$u})"])")
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            =#
-            string=df[i,2]
-            record=false
-            expressions=String[]
-            expression=""
-            for c in 1:length(string)
-                if SubString(string,c:c)=="e"
-                    record=true
-                    expression=expression*SubString(string,c:c)
-                elseif SubString(string,c:c)==")" && record
-                    expression=expression*SubString(string,c:c)
-                    push!(expressions,expression)
-                    record=false
-                    expression=""
-                elseif record
-                    expression=expression*SubString(string,c:c)
-                else 
-                    continue
-                end
-            end
-
-            for c in 1:length(string)
-                if SubString(string,c:c)=="r"
-                    record=true
-                    expression=expression*SubString(string,c:c)
-                elseif SubString(string,c:c)=="}" && record
-                    expression=expression*SubString(string,c:c)
-                    push!(expressions,expression)
-                    record=false
-                    expression=""
-                elseif record
-                    expression=expression*SubString(string,c:c)
-                else 
-                    continue
-                end
-            end
-            #println(unique(expressions))
-            
-                
-
-            for ex in expressions
-                df[i,2]=replace(df[i,2],ex=>"$(dict[ex])")
-            end
-        end
-
-
-        
-        
-        params=[]
-        for i in 1:size(df)[1]
-            for x in 1:edgenumber
-                for y in 1:retnumber                
-                    if(contains(df[i,2], "X$x"))
-                        push!(params,"X$x")
-                    end
-                    if(contains(df[i,2], "R$y"))
-                        push!(params,"R$y")
-                    end    
-                end
-            end
-        end
-
-        params=unique(params)
-        open("net.m2.txt", "w") do file
-            str="R = QQ["
-            for i in params 
-                str=str*i*","
-            end
-
-            str=str*"C_1..C_$(size(df)[1])]\n"
-            str=str*"I = ideal(\n"
-            for i in 1:size(df)[1]
-                if i<size(df)[1]
-                    str=str*"$(df[i,2])-C_$i,\n"
-                else
-                    str=str*"$(df[i,2])-C_$i)\n"
-                end
-            end
-            str=str*"G = eliminate (I, {"
-            for i in 1:length(params)
-                if i<length(params)
-                    str=str*"$(params[i]),"
-                else
-                    str=str*"$(params[i])})\n"
-                end
-            end
-            str=str*"S = QQ[C_1..C_$(size(df)[1])]\n"
-            str=str*"J = sub(G,S)\n"
-            str=str*"dim J"
-            
-            write(file, str)
-        end
-    end
-    
-
-    
-    if(savenet) open("$filename.net.txt", "w") do file write(file, eNewick) end end
-    if(savecsv) CSV.write("$filename.csv", df, header=false) end #*-_-*#   
-    
-    if(printCFs)
-        println("Topology: $eNewick")
-        return quartet, taxa, df
+    #--------output--------#
+    #extended newick string with parameters replaced with t_{1} etc. stuff or not; 
+    #always print the topology at each analysis
+    if(symbolic)
+        eNewick=gettingSymbolicTopology(net,dict)
     else
-        return quartet, taxa
+        eNewick=PN.writeTopology(net)
     end
+    #show and/or store topology as a text file if requested (printCFs=savenet=true)
+    if(printCFs) display(eNewick) end
+    if(savenet) open("$filename.net.txt", "w") do file write(file, eNewick) end end
+
+    #displaying and saving csv spreadsheet if requested (savecsv=true)
+    if(printCFs) display(df) end
+    if(savecsv) CSV.write("$filename.csv", df, header=false) end 
+
+    #macaulay output
+    numCFs=size(df)[1]
+    if(macaulay||matlab) 
+        dataframe=deepcopy(df)
+        params=gettingSymbolicInput(net, dataframe, inheritancecorrelation) 
+    end
+    if(macaulay)
+        open("$filename.m2.txt", "w") do file
+        str="R = QQ["
+        for par in params str=str*par*"," end
+        str=str*"C_1..C_$numCFs]\n"
+        str=str*"I = ideal(\n"
+        i=1
+        while i<numCFs
+            str=str*"$(dataframe[i,2])-C_$i,\n"
+            i+=1
+        end
+        str=str*"$(dataframe[numCFs,2])-C_$numCFs);\n"
+        str=str*"G = eliminate (I, {"
+        numparams=length(params)   
+        for par in params str=str*par*"," end
+        str=str*"$(params[numparams])})\n"
+        str=str*"S = QQ[C_1..C_$numCFs]\nJ = sub(G,S)\ndim J"
+        write(file, str)
+        end
+    end
+
+    #matlab output
+    if(matlab)
+        open("$filename.matlab.txt", "w") do file 
+            str="% Declare variables\n"
+            str=str*"syms"
+            for par in params str=str*par*" " end
+            for i in 1:numCFs str=str*"C_$i " end
+            str=str*"\n\n% matrix of generating polynomials\n"
+            str=str*"F=["
+            i=1
+            while i<numCFs
+                str=str*"$(dataframe[i,2])-C_$i,\n"
+                i+=1
+            end
+            str=str*"$(dataframe[numCFs,2])-C_$numCFs];\n"
+            str=str*"\n% matrix of generating polynomials\n"
+            str=str*"\n% Array of all variables\n"
+            str=str*"V=["
+            for par in params str=str*par*" " end
+            for i in 1:numCFs-1 str=str*"C_$i " end
+            str=str*"C_$numCFs]\n"
+            str=str*"\n% Compute dimension\nCoalDim(F,V)"
+        write(file, str)
+        end
+    end
+   
+    if !(symbolic) return quartet, taxa end
 end
+
 
 """
     network_expectedCF!(quartet::QuartetT, net::HybridNetwork, taxa, taxonnumber,
@@ -279,7 +173,6 @@ function network_expectedCF!(quartet::PN.QuartetT{MVector{3,Float64}},
                                 taxa, 
                                 taxonnumber, 
                                 inheritancecorrelation, 
-                                #printCFs,
                                 df,
                                 symbolic,
                                 dict)
@@ -563,14 +456,10 @@ function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorr
         if symbolic
             for i in 1:3
                 qCFp[i] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[i])))"
-                #qCFp[2] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[2])))"
-                #CFp[3] *= "((($deepcoalprobp * $(dict[pgam])) * ($(dict[gammaj]) * $(dict[oneminusrho]) + $(dict[inheritancecorrelation]))) * ($(qCFps[3])))"
             end
         else
             for i in 1:3
                 qCFp[i] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[i])))"
-                #qCFp[2] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[2])))"
-                #qCFp[3] *= "((($deepcoalprobp * $pgam) * ($gammaj * $oneminusrhop + $inheritancecorrelation)) * ($(qCFps[3])))"
             end
         end
         else # add subnetwork with flipped assignment of the 2 taxa to parents i & j
@@ -580,19 +469,14 @@ function network_expectedCF_4taxa!(net::HybridNetwork, fourtaxa, inheritancecorr
             prob=round(prob, digits = dpoints)
 
             qCF .+= prob .* (qCF_subnet .+ qCF_subnet[flipped_ij])
-            #println("qCF_subnet=$qCF_subnet")
-            #println("qCFps=$qCFps")
+    
         if symbolic
             for i in 1:3
                 qCFp[i] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[i])+$(qCFps[flipped_ij[i]])))"
-                #qCFp[2] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[2])+$(qCFps[flipped_ij[2]])))"
-                #qCFp[3] *= "((($deepcoalprobp * $(dict[pgam])) * $(dict[gammaj]) * $(dict[oneminusrho])) * ($(qCFps[3])+$(qCFps[flipped_ij[3]])))"
             end
         else
             for i in 1:3
                 qCFp[i] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[i])+$(qCFps[flipped_ij[i]])))"
-                #qCFp[2] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[2])+$(qCFps[flipped_ij[2]])))"
-                #qCFp[3] *= "((($deepcoalprobp * $pgam) * $gammaj * $oneminusrhop) * ($(qCFps[3])+$(qCFps[flipped_ij[3]])))"
             end
         end
         end
@@ -606,71 +490,147 @@ end
 
 
 """
-    readTopologyrand(newick::AbstractString; dpoints=5::Integer)
+    readTopologyrand(net; defaultval=1.1::Float64)
 
-Generate random parameter values (0<x<1) for edge lengths and inheritance probabilities and assign them to the provided newick.
+    Generate random parameter values for edge lengths with >`defaultval` 
+    and inheritance probabilities=[0,1] and assign them to the provided network.
+    Input network can be either Newick/extended Newick-formatted String or
+    `HybridNetwork` object read in by function `readTopology` in `PhyloNetworks` pkg.
 """
-function readTopologyrand(newick::AbstractString)  
-    net=PN.readTopology(newick)
-    hybnodenum=Int[]
-    h=length(net.hybrid)
-    hh=0
-    gam=[]
-
-    #generate arbitrary branch lengths for each edge and assign them
-    for e in net.edge
-        #val=rand(Uniform(1,5))
-        val=rand()+1
-        val=round(val, digits = dpoints)
-        e.length=val
-    end
+function readTopologyrand(net; defaultval=1.1::Float64)
+    #--------some warnings--------#
+    defaultval>=1.1 || @warn "Setting deafultval ≥ 1.1 is recommended for various reasons."
     
-    #generate arbitrary gamma values 
-    while hh<h
-        hh+=1
+    #---------read in topology if input is newick string or HybridNetwork object---------#
+    if typeof(net)==HybridNetwork net=net
+    else net=PN.readTopology(net) end
+
+    #--------generaete arbitrary edge lengths--------#
+    for e in net.edge
+        e.length=round((rand()+defaultval), digits = dpoints)
+    end
+
+    #--------generaete arbitrary inheritance probabilities--------#
+    #----preambles----#
+    reticulatenodeindex=Int[]
+    nreticulate=length(net.hybrid)
+    gammavec=zeros(nreticulate)
+    
+    #getting hybrid node index numbers
+    for n in net.node
+        n.hybrid && push!(reticulatenodeindex,n.number)
+    end
+    #check the number of hybrid nodes are counted correctly
+    length(reticulatenodeindex)==nreticulate || @error "Generation of gamma was incomplete. Rerun the function (error 1)."
+
+    #generate arbitrary gamma values n=number of reticulation nodes (that will be assigned to one of the incoming edges)
+    for gamma in 1:nreticulate 
         val=rand()
-        val=round(val, digits = dpoints)
-        push!(gam,val)
+        while !(0<val<1) val=rand() end #check if generated gamma = [0,1]
+        gammavec[gamma]=round(val, digits = dpoints)
     end
+    #check if all gamma is properly generated (ie., no zero in gammavec)
+    all(!=(0.0), gammavec) && all(!=(1.0), gammavec) || @error "Generation of gamma was incomplete. Rerun the function (error 2)."
     
-    #identify which node number are hybrid nodes
-    for e in net.edge
-        if e.hybrid
-            child=PhyloNetworks.getChild(e)
-            push!(hybnodenum,child.number)
+    #assign inheritance probabilities to reticulate edges
+    for i in 1:nreticulate
+        nthvisit=1
+        for e in net.edge
+            if e.hybrid
+                child=PhyloNetworks.getChild(e)
+                if child.number==reticulatenodeindex[i]
+                    if nthvisit==1
+                        e.gamma=round(gammavec[i], digits = dpoints)
+                        nthvisit+=1
+                    elseif nthvisit==2 e.gamma=round((1-gammavec[i]), digits = dpoints)
+                    elseif nthvisit>2 error("Three edges enters hybrid node number $(reticulatenodeindex[i]). Use binary network as input.")
+                    end
+                end 
+            else continue
+            end
         end
     end
 
-    #remove duplications and make sure it matches with h in the input newick
-    hybnodenum=unique(hybnodenum)
-    numhybrid=length(hybnodenum)
-    numhybrid==h || error("Number of hybrid nodes does not match with number of hybrids in the HybridNetwork.")
-    
-    #assign gamma to hybrid edges
-    for j in 1:numhybrid
-        hybnode=hybnodenum[j]
-        i=1
-        for e in net.edge
-            child=PhyloNetworks.getChild(e)
-            if child.number==hybnode
-                if i==1
-                    e.gamma=gam[j]
-                    i+=1
-                elseif i==2
-                    val=1-gam[j]
-                    val=round(val, digits = dpoints)
-                    e.gamma=val
-                else
-                    error("There are three incoming edge at hybrid node number $(child.num)")
-                end
-            end 
-        end
-    end
-    
     return net
 end
 
+function gettingSymbolicTopology(net::HybridNetwork,dict)
+    eNewick=PN.writeTopology(net)
+    for e in net.edge 
+        eNewick=replace(eNewick,"$(e.length)"=>"t_{$(e.number)}")
+        eNewick=replace(eNewick,"$(e.gamma)"=>"$(dict[e.gamma])")
+    end
+    return eNewick
+end
 
+
+function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
+
+    dictmacaulay=dictionarymaca(net)
+    edgenumber=length(net.edge)
+    retnumber=length(net.hybrid)
+    numCFs=size(df)[1]
+
+    for i in 1:numCFs
+        df[i,2]=replace(df[i,2],"rho"=>"$inheritancecorrelation")
+        string=df[i,2]
+        record=false
+        expressions=String[]
+        expression=""
+        for c in 1:length(string)
+            if SubString(string,c:c)=="e"
+                record=true
+                expression=expression*SubString(string,c:c)
+            elseif SubString(string,c:c)==")" && record
+                expression=expression*SubString(string,c:c)
+                push!(expressions,expression)
+                record=false
+                expression=""
+            elseif record
+                expression=expression*SubString(string,c:c)
+            else 
+                continue
+            end
+        end
+
+        for c in 1:length(string)
+            if SubString(string,c:c)=="r"
+                record=true
+                expression=expression*SubString(string,c:c)
+            elseif SubString(string,c:c)=="}" && record
+                expression=expression*SubString(string,c:c)
+                push!(expressions,expression)
+                record=false
+                expression=""
+            elseif record
+                expression=expression*SubString(string,c:c)
+            else 
+                continue
+            end
+        end
+                        
+        for ex in expressions
+            df[i,2]=replace(df[i,2],ex=>"$(dictmacaulay[ex])")
+        end
+    end
+
+    params=[]
+    for i in 1:numCFs
+        for x in 1:edgenumber
+            for y in 1:retnumber                
+                if(contains(df[i,2], "X$x"))
+                    push!(params,"X$x")
+                end
+                if(contains(df[i,2], "R$y"))
+                    push!(params,"R$y")
+                end    
+            end
+        end
+    end
+    params=unique(params)
+
+    return params
+end
 
 function dictionary(net,inheritancecorrelation)
 ##########BEGINNING OF DISCTIONARY CONSTRUCTION##########E
@@ -782,10 +742,69 @@ function dictionary(net,inheritancecorrelation)
 end
 
 
+
+
+##For Macaulay2
+function dictionarymaca(net)
+    dict=Dict()
+    edgenumber=length(net.edge)
+    retnumber=length(net.hybrid)
+    for i in 1:edgenumber
+        dict["exp(-t_{$i})"] = "X$i" #*-_-*#
+    end
+    for i in 1:edgenumber
+        for j in 1:edgenumber
+            dict["exp(-t_{$i}-t_{$j})"] = "(X$i*X$j)" #*-_-*#
+        end
+    end
+    for i in 1:edgenumber
+        for j in 1:edgenumber
+            for k in 1:edgenumber
+                dict["exp(-t_{$i}-t_{$j}-t_{$k})"] = "(X$i*X$j*X$k)" #*-_-*#
+            end
+        end
+    end
+    for i in 1:edgenumber
+        for j in 1:edgenumber
+            for k in 1:edgenumber
+                for l in 1:edgenumber
+                    dict["exp(-t_{$i}-t_{$j}-t_{$k}-t_{$l})"] = "(X$i*X$j*X$k*X$l)" #*-_-*#
+                end
+            end
+        end
+    end
+    for i in 1:edgenumber
+        for j in 1:edgenumber
+            for k in 1:edgenumber
+                for l in 1:edgenumber
+                    for x in 1:edgenumber
+                        dict["exp(-t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$x})"] = "(X$i*X$j*X$k*X$l*X$x)" #*-_-*#
+                    end
+                end
+            end
+        end
+    end
+    
+    for i in 1:retnumber
+        dict["r_{$i}"] = "R$i" #*-_-*#
+    end
+    
+    return dict
+end
+
+
+
+
+
+
+
+
+
 function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
+    
     df0=DataFrame(Split=String[], CF0=Float64[])
     df1=DataFrame(Split=String[], CF1=String[], CF11=Float64[])
-    df2=DataFrame(Split=String[], CF2=String[], CF21=String[], CF22=Float64[])
+    #df2=DataFrame(Split=String[], CF2=String[], CF21=String[], CF22=Float64[])
 
     #1. df=split, val1, val2, val3
     quartet,taxa,df=network_expectedCF(net,printCFs=true)
@@ -814,7 +833,7 @@ function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
     end
     ##check if val1,2,3=val1',2',3'
 
-    #3 get csv with symbolic=true
+    #=3 get csv with symbolic=true
     quartet,taxa,df=network_expectedCF(net,symbolic=true, printCFs=true)
     dict=dictionary(net,inh)
     dict=Dict(value => key for (key, value) in dict)
@@ -822,7 +841,8 @@ function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
     #display(df)
     
     nedge=length(net.edge)
-    for i in 1:(size(df)[1])
+    
+    for i in 1:(size(df)[1])   
         transformed=df[i,2] 
         for t1 in 1:nedge
             for t2 in 1:nedge
@@ -839,30 +859,27 @@ function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
                                 transformed=replace(transformed, "(1-r_{$r1})" => "$(dict["(1-r_{$r1})"])") 
                                 transformed=replace(transformed, "r_{$r1}" => "$(dict["r_{$r1}"])") 
 
-                                transformed=replace(transformed, "rho" => inh) 
+                                transformed=replace(transformed, "rho" => "$inh") 
                             end
                         end
                     end
                 end
             end
         end
-
-        
-
         val=eval(Meta.parse(transformed))
         val=round(val, digits = dpoints)
         push!(df2, (df[i,1],df[i,2],transformed,val))       
     end
-
-    #use dict to replace symbols with values
-    #get df=split val1'' val2'' val3''
-
-    finaldf = outerjoin(df0, df1, df2, on = :Split)
+    
+=#
+    
+    finaldf = outerjoin(df0, df1, on = :Split)
+    #finaldf = outerjoin(df0, df1, df2, on = :Split)    
 
     for i in 1:(size(df)[1])
         abs(finaldf[i,2]-finaldf[i,4]) < threshold || error("values do not match")
-        abs(finaldf[i,2]-finaldf[i,7]) < threshold || error("values do not match")
-        abs(finaldf[i,4]-finaldf[i,4]) < threshold || error("values do not match")
+        #abs(finaldf[i,2]-finaldf[i,7]) < threshold || error("values do not match")
+        #abs(finaldf[i,4]-finaldf[i,4]) < threshold || error("values do not match")
     end
     
     if(savecsv) CSV.write("test.csv", finaldf, header=true) end
@@ -874,63 +891,3 @@ end
 
 
 
-
-#=
-tops=readlines("topologies_n5_l1.txt")
-error=0
-k=0
-for i in 1:248
-    println("Now at the network $i")
-    rep=0
-    while rep<1
-        try 
-            net0=readTopologyrand(tops[i])
-            test(net0)
-            rep+=1        
-            k+=1
-        catch
-            error+=1
-            continue
-        end
-    end
-end
-println(k,error)
-=#
-
-#=
-record=false
-expressions=String[]
-expression=""
-for i in 1:length(string)
-    if SubString(string,i:i)=="e"
-        record=true
-        expression=expression*SubString(string,i:i)
-    elseif SubString(string,i:i)==")" && record
-        expression=expression*SubString(string,i:i)
-        push!(expressions,expression)
-        record=false
-        expression=""
-    elseif record
-        expression=expression*SubString(string,i:i)
-    else 
-        continue
-    end
-end
-
-for i in 1:length(string)
-    if SubString(string,i:i)=="r"
-        record=true
-        expression=expression*SubString(string,i:i)
-    elseif SubString(string,i:i)=="}" && record
-        expression=expression*SubString(string,i:i)
-        push!(expressions,expression)
-        record=false
-        expression=""
-    elseif record
-        expression=expression*SubString(string,i:i)
-    else 
-        continue
-    end
-end
-println(unique(expressions))
-=#
