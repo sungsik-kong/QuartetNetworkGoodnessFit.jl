@@ -632,10 +632,37 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
     return params
 end
 
+function dictionary1(net,inheritancecorrelation)
+    nmerge=2 #number of edges that are merged during CF calculation
+    dict=Dict()
+    edgelengths=zeros(length(net.edge))
+    for i in 1:length(net.edge)
+        edgelengths[i]=round(net.edge[i].length, digits=dpoints)
+    end
+    numedges=length(edgelengths)
+    println(edgelengths)
+    for eindex in 1:numedges 
+        dict[edgelengths[eindex]] = "t_{$eindex}"
+    end
+    println(dict)
+
+
+end
+
 function dictionary(net,inheritancecorrelation)
 ##########BEGINNING OF DISCTIONARY CONSTRUCTION##########E
     #kong: create a dictionary of parameter labels to values (tau and gamma)
+    nmerge=2 #number of edges that are merged during CF calculation
     dict=Dict()
+    edgelengths=zeros(length(net.edge))
+    for i in 1:length(net.edge)
+        edgelengths[i]=round(net.edge[i].length, digits=dpoints)
+    end
+    println(edgelengths)
+
+    round
+
+
     #branch length => t_{branch id}
     for e in net.edge
         enum=e.number
@@ -887,7 +914,4 @@ function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
 
     return finaldf
 end
-
-
-
 
