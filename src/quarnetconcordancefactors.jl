@@ -570,6 +570,7 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
     edgenumber=length(net.edge)
     retnumber=length(net.hybrid)
     numCFs=size(df)[1]
+    params=String[]
 
     for i in 1:numCFs
         df[i,2]=replace(df[i,2],"rho"=>"$inheritancecorrelation")
@@ -608,27 +609,64 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
                 continue
             end
         end
-                        
+        
+        append!(params,expressions)
+
         for ex in expressions
             df[i,2]=replace(df[i,2],ex=>"$(dictmacaulay[ex])")
+        end
+        
+    end
+
+    params=unique(params)
+    ring=String[]
+
+    for i in params
+        x=split(i, "}-")
+        for j in x
+            push!(ring,j)
         end
     end
 
     params=[]
-    for i in 1:numCFs
-        for x in 1:edgenumber
-            for y in 1:retnumber                
-                if(contains(df[i,2], "X$x"))
-                    push!(params,"X$x")
-                end
-                if(contains(df[i,2], "R$y"))
-                    push!(params,"R$y")
-                end    
+    for r in ring
+        r = replace(r,"exp(-" => "" )
+        r = replace(r,"})" => "" )
+        for t in 1:edgenumber
+            if r=="t_{$t"
+                push!(params,"X$t")
+            end
+        end
+        for h in 1:retnumber
+            if r=="r_{$h}"
+                push!(params,"R$h")
             end
         end
     end
+    
     params=unique(params)
+    params=sort!(params)
+    
+    
+    #=
+        params=[]
 
+    for i in 1:numCFs
+        for x in 1:edgenumber
+            if(contains(df[i,2], "X$x)"))
+                push!(params,"X$x")
+            end
+        end
+        for y in 1:retnumber               
+            if(contains(df[i,2], "r_$y"))
+                push!(params,"R$y")
+            end
+        end    
+    end
+        params=unique(params)
+
+    =#
+    
     return params
 end
 
@@ -658,7 +696,7 @@ function dictionary(net,inheritancecorrelation)
     for i in 1:length(net.edge)
         edgelengths[i]=round(net.edge[i].length, digits=dpoints)
     end
-    println(edgelengths)
+    #println(edgelengths)
 
     round
 
@@ -915,3 +953,4 @@ function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
     return finaldf
 end
 
+#network non binary - having rho transformed for exp(-0)
