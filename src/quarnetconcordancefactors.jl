@@ -127,7 +127,7 @@ function network_expectedCF(net::HybridNetwork;
     if(matlab)
         open("$filename.matlab.txt", "w") do file 
             str="% Declare variables\n"
-            str=str*"syms"
+            str=str*"syms "
             for par in params str=str*par*" " end
             for i in 1:numCFs str=str*"C_$i " end
             str=str*"\n\n% matrix of generating polynomials\n"
