@@ -698,9 +698,6 @@ function dictionary(net,inheritancecorrelation)
     end
     #println(edgelengths)
 
-    round
-
-
     #branch length => t_{branch id}
     for e in net.edge
         enum=e.number
@@ -759,6 +756,26 @@ function dictionary(net,inheritancecorrelation)
                         e5=net.edge[a]
                         length=round(sum([e1.length,e2.length,e3.length,e4.length,e5.length]), digits = dpoints)
                         dict[length] = "t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$a}" #*-_-*#
+                    end
+                end
+            end
+        end
+    end   
+    for i in 1:length(net.edge)
+        for j in 2:length(net.edge)
+            for k in 3:length(net.edge)
+                for l in 4:length(net.edge)
+                    for a in 5:length(net.edge)
+                        for b in 6:length(net.edge)
+                            e1=net.edge[i]
+                            e2=net.edge[j]
+                            e3=net.edge[k]
+                            e4=net.edge[l]
+                            e5=net.edge[a]
+                            e6=net.edge[b]
+                            length=round(sum([e1.length,e2.length,e3.length,e4.length,e5.length,e6.length]), digits = dpoints)
+                            dict[length] = "t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$a}-t_{$b}" #*-_-*#
+                        end
                     end
                 end
             end
@@ -849,6 +866,19 @@ function dictionarymaca(net)
             end
         end
     end
+    for i in 1:edgenumber
+        for j in 1:edgenumber
+            for k in 1:edgenumber
+                for l in 1:edgenumber
+                    for x in 1:edgenumber
+                        for y in 1:edgenumber
+                            dict["exp(-t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$x}-t_{$y})"] = "(X$i*X$j*X$k*X$l*X$x*X$y)" #*-_-*#
+                        end
+                    end
+                end
+            end
+        end
+    end
     
     for i in 1:retnumber
         dict["r_{$i}"] = "R$i" #*-_-*#
@@ -856,6 +886,44 @@ function dictionarymaca(net)
     
     return dict
 end
+
+
+
+
+function generate_combinations(net, depth)
+    # Initialize the result with single elements
+    nedge=length(net.edge)
+    input_array=(1:nedge)
+    result = ["exp(-t{$(i)})" for i in input_array]
+    
+    # Generate combinations for the given depth
+    function recurse(current, level)
+        if level == depth
+            return
+        end
+        for i in input_array
+            new_combination = "" * current * "}-t_{" * string(i) * ""
+            push!(result, "exp(-t{" * new_combination * "})")
+            recurse(new_combination, level + 1)
+        end
+    end
+    
+    # Start recursion from each element
+    for i in input_array
+        recurse(string(i), 1)
+    end
+
+    display(result)
+    
+    return result
+end
+
+#input_array = [1, 2, 3]
+#depth = 3  # Adjust the depth as needed
+#output = generate_combinations(input_array, depth)
+
+#println(output)
+
 
 
 
