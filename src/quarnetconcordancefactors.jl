@@ -9,7 +9,7 @@ const global dpoints=5 #decimal points for all parameters when randomly generate
                             savecsv=false::Bool,
                             filename="res_qCFs"::AbstractString)
 """
-function network_expectedCF(net::HybridNetwork; 
+function network_expectedCF(net0::HybridNetwork; 
                             showprogressbar=false, 
                             inheritancecorrelation=0, 
                             printCFs=false::Bool,
@@ -21,13 +21,18 @@ function network_expectedCF(net::HybridNetwork;
                             suffix=""::AbstractString)
     
     #----------filename----------#
-    nleaf=length(net.leaf)
-    nreticulate=length(net.hybrid)
+    nleaf=length(net0.leaf)
+    nreticulate=length(net0.hybrid)
     filename="n$(nleaf)h$(nreticulate)"
     if !isempty(suffix) filename=filename*".$(suffix)" end
 
     #---------forcing things to work---------#
-    if(symbolic) net=readTopologyrand(net) end
+    if(symbolic) 
+        net=deepcopy(net0)
+        net=readTopologyrand(net)
+    else
+        net=net0 
+    end
     if(matlab) macaulay=true end
     if(macaulay) symbolic=true end
     
@@ -149,7 +154,7 @@ function network_expectedCF(net::HybridNetwork;
         end
     end
    
-    if !(symbolic) return quartet, taxa end
+    if !(symbolic) return quartet, taxa, df end
 end
 
 
@@ -566,7 +571,7 @@ end
 
 function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
 
-    dictmacaulay=dictionarymaca(net)
+    #dictmacaulay=dictionarymaca(net)
     edgenumber=length(net.edge)
     retnumber=length(net.hybrid)
     numCFs=size(df)[1]
@@ -577,6 +582,24 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
         string=df[i,2]
         record=false
         expressions=String[]
+        
+        
+        for e in 1:length(net.edge)
+            if(occursin("-t_{$e}","$(df[i,2])"))
+                #println("-t_{$e},$(df[i,2])"#
+                push!(expressions,"X$e")
+            end
+        end
+
+        for e in 1:length(net.hybrid)
+            if(occursin("r_{$e}","$(df[i,2])"))
+                #println("r_{$e},$(df[i,2])")
+                push!(expressions,"R$e")
+            end
+        end
+        
+        append!(params,expressions)
+        #=
         expression=""
         for c in 1:length(string)
             if SubString(string,c:c)=="e"
@@ -611,12 +634,17 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
         end
         
         append!(params,expressions)
-
-        for ex in expressions
-            df[i,2]=replace(df[i,2],ex=>"$(dictmacaulay[ex])")
-        end
+=#
+      #=    
+            
+            exo = replace(exo,"-t_{" => "*X" )
+            #exo = replace(exo,"})" => ")" )
+             #println("hehe")           
+    =#
         
     end
+
+    #println(params)
 
     params=unique(params)
     ring=String[]
@@ -627,7 +655,7 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
             push!(ring,j)
         end
     end
-
+#=
     params=[]
     for r in ring
         r = replace(r,"exp(-" => "" )
@@ -643,29 +671,17 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
             end
         end
     end
-    
-    params=unique(params)
+    =#
+    #params=unique(params)
     params=sort!(params)
     
-    
-    #=
-        params=[]
-
-    for i in 1:numCFs
-        for x in 1:edgenumber
-            if(contains(df[i,2], "X$x)"))
-                push!(params,"X$x")
-            end
-        end
-        for y in 1:retnumber               
-            if(contains(df[i,2], "r_$y"))
-                push!(params,"R$y")
-            end
-        end    
+    for cf in 1:numCFs
+        df[cf,2]=replace(df[cf,2],"r_{" => "R" )#Ropen
+        df[cf,2]=replace(df[cf,2],"exp(-t_{" => "(X" )
+        df[cf,2]=replace(df[cf,2],"-t_{" => "*X" )
+        df[cf,2]=replace(df[cf,2],"})" => ")" )
+        df[cf,2]=replace(df[cf,2],"}" => "" )#close
     end
-        params=unique(params)
-
-    =#
     
     return params
 end
@@ -901,7 +917,9 @@ function generate_combinations(net, depth)
         if level == depth
             return
         end
+        
         for i in input_array
+            print(current)
             new_combination = "" * current * "}-t_{" * string(i) * ""
             push!(result, "exp(-t{" * new_combination * "})")
             recurse(new_combination, level + 1)
@@ -913,7 +931,7 @@ function generate_combinations(net, depth)
         recurse(string(i), 1)
     end
 
-    display(result)
+    #display(result)
     
     return result
 end
@@ -940,7 +958,7 @@ function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
     #df2=DataFrame(Split=String[], CF2=String[], CF21=String[], CF22=Float64[])
 
     #1. df=split, val1, val2, val3
-    quartet,taxa,df=network_expectedCF(net,printCFs=true)
+    quartet,taxa=network_expectedCF(net,printCFs=true)
     numquartet=length(quartet)
     for i in 1:numquartet
         l1=taxa[quartet[i].taxonnumber[1]]
@@ -957,62 +975,23 @@ function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
     
     #2. see if symbolic=false returns the same value as 1
     #get df=split val1' val2' val3'
+
     
-    quartet,taxa,df=network_expectedCF(net,symbolic=false, printCFs=true)
-    for i in 1:(size(df)[1])
-        val=eval(Meta.parse(df[i,2]))
+    
+    quartet,taxa=network_expectedCF(net,symbolic=false, printCFs=true)
+    for i in 1:(size(df1)[1])
+        val=eval(Meta.parse(df1[i,2]))
         val=round(val, digits = dpoints)
         push!(df1,(df[i,1],df[i,2],val))
     end
-    ##check if val1,2,3=val1',2',3'
 
-    #=3 get csv with symbolic=true
-    quartet,taxa,df=network_expectedCF(net,symbolic=true, printCFs=true)
-    dict=dictionary(net,inh)
-    dict=Dict(value => key for (key, value) in dict)
-    #display(dict)
-    #display(df)
-    
-    nedge=length(net.edge)
-    
-    for i in 1:(size(df)[1])   
-        transformed=df[i,2] 
-        for t1 in 1:nedge
-            for t2 in 1:nedge
-                for t3 in 1:nedge
-                    for t4 in 1:nedge 
-                        for t5 in 1:nedge 
-                            for r1 in 1:(length(net.hybrid))
-                                transformed=replace(transformed, "exp(-t_{$t1})" => "exp(-$(dict["t_{$t1}"]))") 
-                                transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"]))")                        
-                                transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2}-t_{$t3})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"])-$(dict["t_{$t3}"]))")                        
-                                transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2}-t_{$t3}-t_{$t4})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"])-$(dict["t_{$t3}"])-$(dict["t_{$t4}"]))")                        
-                                transformed=replace(transformed, "exp(-t_{$t1}-t_{$t2}-t_{$t3}-t_{$t4}-t_{$t5})" => "exp(-$(dict["t_{$t1}"])-$(dict["t_{$t2}"])-$(dict["t_{$t3}"])-$(dict["t_{$t4}"])-$(dict["t_{$t5}"])")                        
-
-                                transformed=replace(transformed, "(1-r_{$r1})" => "$(dict["(1-r_{$r1})"])") 
-                                transformed=replace(transformed, "r_{$r1}" => "$(dict["r_{$r1}"])") 
-
-                                transformed=replace(transformed, "rho" => "$inh") 
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        val=eval(Meta.parse(transformed))
-        val=round(val, digits = dpoints)
-        push!(df2, (df[i,1],df[i,2],transformed,val))       
-    end
-    
-=#
+    println(df1)
     
     finaldf = outerjoin(df0, df1, on = :Split)
-    #finaldf = outerjoin(df0, df1, df2, on = :Split)    
-
-    for i in 1:(size(df)[1])
+    
+    println(finaldf)
+    for i in 1:(size(finaldf)[1])
         abs(finaldf[i,2]-finaldf[i,4]) < threshold || error("values do not match")
-        #abs(finaldf[i,2]-finaldf[i,7]) < threshold || error("values do not match")
-        #abs(finaldf[i,4]-finaldf[i,4]) < threshold || error("values do not match")
     end
     
     if(savecsv) CSV.write("test.csv", finaldf, header=true) end
