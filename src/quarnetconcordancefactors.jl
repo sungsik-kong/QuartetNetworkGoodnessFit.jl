@@ -121,7 +121,8 @@ function network_expectedCF(net0::HybridNetwork;
         str=str*"$(dataframe[numCFs,2])-C_$numCFs);\n"
         str=str*"G = eliminate (I, {"
         numparams=length(params)   
-        for par in params str=str*par*"," end
+        #for par in params str=str*par*"," end
+        for par in 1:(length(params)-1) str=str*params[par]*"," end
         str=str*"$(params[numparams])})\n"
         str=str*"S = QQ[C_1..C_$numCFs]\nJ = sub(G,S)\ndim J"
         write(file, str)
