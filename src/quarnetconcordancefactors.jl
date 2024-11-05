@@ -1,13 +1,16 @@
 const global dpoints=5 #decimal points for all parameters when randomly generated
 
 """
-    network_expectedCF(net::HybridNetwork; 
+function network_expectedCF(net0::HybridNetwork; 
                             showprogressbar=false, 
                             inheritancecorrelation=0, 
                             printCFs=false::Bool,
+                            savenet=false::Bool,
                             symbolic=false::Bool,
                             savecsv=false::Bool,
-                            filename="res_qCFs"::AbstractString)
+                            macaulay=false::Bool,
+                            matlab=false::Bool,
+                            suffix=""::AbstractString)
 """
 function network_expectedCF(net0::HybridNetwork; 
                             showprogressbar=false, 
@@ -155,7 +158,8 @@ function network_expectedCF(net0::HybridNetwork;
         end
     end
    
-    if !(symbolic) return quartet, taxa, df end
+    #if !(symbolic) 
+    return quartet, taxa, df #end
 end
 
 
@@ -571,8 +575,6 @@ end
 
 
 function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
-
-    #dictmacaulay=dictionarymaca(net)
     edgenumber=length(net.edge)
     retnumber=length(net.hybrid)
     numCFs=size(df)[1]
@@ -600,52 +602,9 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
         end
         
         append!(params,expressions)
-        #=
-        expression=""
-        for c in 1:length(string)
-            if SubString(string,c:c)=="e"
-                record=true
-                expression=expression*SubString(string,c:c)
-            elseif SubString(string,c:c)==")" && record
-                expression=expression*SubString(string,c:c)
-                push!(expressions,expression)
-                record=false
-                expression=""
-            elseif record
-                expression=expression*SubString(string,c:c)
-            else 
-                continue
-            end
-        end
 
-        for c in 1:length(string)
-            if SubString(string,c:c)=="r"
-                record=true
-                expression=expression*SubString(string,c:c)
-            elseif SubString(string,c:c)=="}" && record
-                expression=expression*SubString(string,c:c)
-                push!(expressions,expression)
-                record=false
-                expression=""
-            elseif record
-                expression=expression*SubString(string,c:c)
-            else 
-                continue
-            end
-        end
-        
-        append!(params,expressions)
-=#
-      #=    
-            
-            exo = replace(exo,"-t_{" => "*X" )
-            #exo = replace(exo,"})" => ")" )
-             #println("hehe")           
-    =#
         
     end
-
-    #println(params)
 
     params=unique(params)
     ring=String[]
@@ -656,24 +615,7 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
             push!(ring,j)
         end
     end
-#=
-    params=[]
-    for r in ring
-        r = replace(r,"exp(-" => "" )
-        r = replace(r,"})" => "" )
-        for t in 1:edgenumber
-            if r=="t_{$t"
-                push!(params,"X$t")
-            end
-        end
-        for h in 1:retnumber
-            if r=="r_{$h}"
-                push!(params,"R$h")
-            end
-        end
-    end
-    =#
-    #params=unique(params)
+
     params=sort!(params)
     
     for cf in 1:numCFs
@@ -704,7 +646,7 @@ function dictionary1(net,inheritancecorrelation)
 
 end
 
-function dictionary(net,inheritancecorrelation)
+function dictionary(net,inheritancecorrelation; convert=false)
 ##########BEGINNING OF DISCTIONARY CONSTRUCTION##########E
     #kong: create a dictionary of parameter labels to values (tau and gamma)
     nmerge=2 #number of edges that are merged during CF calculation
@@ -720,6 +662,7 @@ function dictionary(net,inheritancecorrelation)
         enum=e.number
         e.length=round(e.length,digits=dpoints)
         dict[e.length] = "t_{$enum}" #*-_-*#       
+        if(convert) dict["t_{$enum}"] = e.length end
     end
     
     for i in 1:length(net.edge)
@@ -729,7 +672,7 @@ function dictionary(net,inheritancecorrelation)
             if e1==e2 break 
             else 
             length=round(sum([e1.length,e2.length]), digits = dpoints)
-            dict[length] = "t_{$i}-t_{$j}" #*-_-*#
+            dict[length] = "t_{$i}-t_{$j}" #*-_-*#            
             end
         end
     end
@@ -814,6 +757,7 @@ function dictionary(net,inheritancecorrelation)
             if child.number==hybnode
                 e.gamma=round(e.gamma, digits = dpoints)
                 if i==1 dict[e.gamma] = "r_{$j}"
+                    if(convert) dict["r_{$j}"] = e.gamma end
                     i+=1
                 elseif i==2
                     dict[e.gamma] = "(1-r_{$j})"
@@ -920,7 +864,6 @@ function generate_combinations(net, depth)
         end
         
         for i in input_array
-            print(current)
             new_combination = "" * current * "}-t_{" * string(i) * ""
             push!(result, "exp(-t{" * new_combination * "})")
             recurse(new_combination, level + 1)
@@ -952,14 +895,16 @@ end
 
 
 
-function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
+function test(net;inheritancecorrelation=0,threshold=0.01::Float64,savecsv=false::Bool)
     
     df0=DataFrame(Split=String[], CF0=Float64[])
     df1=DataFrame(Split=String[], CF1=String[], CF11=Float64[])
-    #df2=DataFrame(Split=String[], CF2=String[], CF21=String[], CF22=Float64[])
+    df2=DataFrame(Split=String[], CF2=String[], CF21=String[], CF22=Float64[])
 
     #1. df=split, val1, val2, val3
-    quartet,taxa=network_expectedCF(net,printCFs=true)
+    print("Evaluating df0...")
+    
+    quartet,taxa,df=network_expectedCF(net,printCFs=false)
     numquartet=length(quartet)
     for i in 1:numquartet
         l1=taxa[quartet[i].taxonnumber[1]]
@@ -973,30 +918,71 @@ function test(net;inh=0,threshold=0.01::Float64,savecsv=false::Bool)
         push!(df0, (splitt2,quartet[i].data[2]))
         push!(df0, (splitt3,quartet[i].data[3]))
     end
-    
-    #2. see if symbolic=false returns the same value as 1
-    #get df=split val1' val2' val3'
 
+    println("Complete")
     
     
-    quartet,taxa=network_expectedCF(net,symbolic=false, printCFs=true)
-    for i in 1:(size(df1)[1])
-        val=eval(Meta.parse(df1[i,2]))
+    #2. see if symbolic=false returns the same value as 1    
+    print("Evaluating df1...")
+
+    quartet,taxa,df=network_expectedCF(net,symbolic=false, printCFs=false)
+    for i in 1:(size(df)[1])
+        val=eval(Meta.parse(df[i,2]))
         val=round(val, digits = dpoints)
         push!(df1,(df[i,1],df[i,2],val))
     end
 
-    println(df1)
+    println("Complete")
+
+
+    #3. get symbolic one
+    print("Evaluating df2, this may take a while...")
+
+    quartet,taxa,df=network_expectedCF(net,symbolic=true, printCFs=false)
+    for i in 1:(size(df)[1])
+        push!(df2,(df[i,1],df[i,2],df[i,2],0.0))
+    end
+
+    dict=Dict()
+    for i in net.edge
+        dict["t_{$(i.number)}"]=String("$(i.length)")
+    end
+
+    dict1=dictionary(net,inheritancecorrelation, convert=true)
+    for i in 1:length(net.edge)
+        for j in 1:(size(df)[1])
+            df2[j,3]=(replace(df2[j,3],"t_{$i}"=>dict["t_{$i}"]))
+        end
+    end
     
-    finaldf = outerjoin(df0, df1, on = :Split)
-    
-    println(finaldf)
+    for i in 1:length(net.hybrid)
+        for j in 1:(size(df)[1])
+            df2[j,3]=(replace(df2[j,3],"r_{$i}"=>dict1["r_{$i}"]))
+        end
+    end
+
+    for j in 1:(size(df)[1])
+        df2[j,3]=(replace(df2[j,3],"rho"=>inheritancecorrelation))
+    end
+
+    for i in 1:(size(df2)[1])
+        val=eval(Meta.parse(df2[i,3]))
+        val=round(val, digits = dpoints)
+        df2[i,4]=val
+    end
+
+    println("Complete")
+
+
+    finaldf = outerjoin(df0, df1, df2, on = :Split)
+
     for i in 1:(size(finaldf)[1])
         abs(finaldf[i,2]-finaldf[i,4]) < threshold || error("values do not match")
+        abs(finaldf[i,2]-finaldf[i,7]) < threshold || error("values do not match")
+        abs(finaldf[i,4]-finaldf[i,7]) < threshold || error("values do not match")        
     end
     
     if(savecsv) CSV.write("test.csv", finaldf, header=true) end
-    ##check if val1,2,3=val1',2',3'=val1'',2'',3''
 
     return finaldf
 end
