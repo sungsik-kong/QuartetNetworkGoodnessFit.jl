@@ -10,24 +10,25 @@ function network_expectedCF(net0::HybridNetwork;
                             savecsv=false::Bool,
                             macaulay=false::Bool,
                             matlab=false::Bool,
-                            suffix=""::AbstractString)
+                            filename=""::AbstractString)
 """
 function network_expectedCF(net0::HybridNetwork; 
                             showprogressbar=false, 
                             inheritancecorrelation=0, 
                             printCFs=false::Bool,
+                            saveparams=false::Bool,
                             savenet=false::Bool,
                             symbolic=false::Bool,
                             savecsv=false::Bool,
                             macaulay=false::Bool,
                             matlab=false::Bool,
-                            suffix=""::AbstractString)
+                            filename="net.CF"::AbstractString)
     
     #----------filename----------#
     nleaf=length(net0.leaf)
     nreticulate=length(net0.hybrid)
-    filename="n$(nleaf)h$(nreticulate)"
-    if !isempty(suffix) filename=filename*".$(suffix)" end
+    #filename="n$(nleaf)h$(nreticulate)"
+    #if !isempty(suffix) filename=filename*".$(suffix)" end
 
     #---------forcing things to work---------#
     if(symbolic) 
@@ -42,7 +43,23 @@ function network_expectedCF(net0::HybridNetwork;
     #-----------setting up desk-----------#
     df = DataFrame(Split=String[], CF=String[]) 
     dict=dictionary(net,inheritancecorrelation)
+    
+    if(saveparams)
+        dictc=dictionary(net,inheritancecorrelation,convert=true)
+        df0=DataFrame(Parameter=String[], Value=Float64[])
+        for i in 1:length(net.edge)
+            edgename="t_{$i}"
+            push!(df0, (edgename,dictc[edgename]))
+        end
+        for h in 1:length(net.hybrid)
+            gamamname="r_{$h}"
+            push!(df0, (gamamname,dictc[gamamname]))
+        end
 
+        CSV.write("net-params.csv", df0, header=true)
+    end
+
+    
     #--------(almost) original stuff--------#
     net.node[net.root].leaf && error("The root can't be a leaf.")
     PN.check_nonmissing_nonnegative_edgelengths(net,
@@ -982,8 +999,8 @@ function test(net;inheritancecorrelation=0,threshold=0.01::Float64,savecsv=false
         abs(finaldf[i,4]-finaldf[i,7]) < threshold || error("values do not match")        
     end
     
-    if(savecsv) CSV.write("test.csv", finaldf, header=true) end
-
+    if(savecsv) CSV.write("test-result.csv", finaldf, header=true) end
+    
     return finaldf
 end
 
