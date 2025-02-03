@@ -12,6 +12,7 @@ using StaticArrays
 using Statistics: mean, median
 using StatsFuns: normccdf, chisqccdf, betacdf, betaccdf
 using CSV
+using Combinatorics
 #using Distributions
 
 const PN = PhyloNetworks # for easier use of internals
@@ -23,7 +24,8 @@ ticr,
 ticr!,
 ultrametrize!,
 readTopologyrand,
-test
+test,
+plot_ntwk_with_Symbolic_Names
 
 include("utils.jl")
 include("quarnetconcordancefactors.jl")

@@ -1,16 +1,17 @@
-const global dpoints=5 #decimal points for all parameters when randomly generated
+const global dpoints=7 #decimal points for all parameters when randomly generated
 
 """
 function network_expectedCF(net0::HybridNetwork; 
                             showprogressbar=false, 
                             inheritancecorrelation=0, 
                             printCFs=false::Bool,
+                            saveparams=false::Bool,
                             savenet=false::Bool,
                             symbolic=false::Bool,
                             savecsv=false::Bool,
                             macaulay=false::Bool,
                             matlab=false::Bool,
-                            filename=""::AbstractString)
+                            filename="net.CF"::AbstractString)
 """
 function network_expectedCF(net0::HybridNetwork; 
                             showprogressbar=false, 
@@ -56,7 +57,7 @@ function network_expectedCF(net0::HybridNetwork;
             push!(df0, (gamamname,dictc[gamamname]))
         end
 
-        CSV.write("net-params.csv", df0, header=true)
+        CSV.write("$filename.params.csv", df0, header=true)
     end
 
     
@@ -104,7 +105,6 @@ function network_expectedCF(net0::HybridNetwork;
     end
     showprogressbar && print("\n")
 
-
     #--------output--------#
     #extended newick string with parameters replaced with t_{1} etc. stuff or not; 
     #always print the topology at each analysis
@@ -126,6 +126,7 @@ function network_expectedCF(net0::HybridNetwork;
     if(macaulay||matlab) 
         dataframe=deepcopy(df)
         params=gettingSymbolicInput(net, dataframe, inheritancecorrelation) 
+        #println(params)
     end
     if(macaulay)
         open("$filename.m2.txt", "w") do file
@@ -175,6 +176,8 @@ function network_expectedCF(net0::HybridNetwork;
         end
     end
    
+    if (symbolic) writeTopology(net,"$filename.tre",digits=dpoints) end
+
     #if !(symbolic) 
     return quartet, taxa, df #end
 end
@@ -534,7 +537,8 @@ function readTopologyrand(net; defaultval=1.1::Float64)
 
     #--------generaete arbitrary edge lengths--------#
     for e in net.edge
-        e.length=round((rand()+defaultval), digits = dpoints)
+        #e.length=round(((rand())+defaultval), digits = dpoints)
+        e.length=round(((3*rand())+rand(1:10)-rand()), digits = dpoints)
     end
 
     #--------generaete arbitrary inheritance probabilities--------#
@@ -603,7 +607,6 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
         record=false
         expressions=String[]
         
-        
         for e in 1:length(net.edge)
             if(occursin("-t_{$e}","$(df[i,2])"))
                 #println("-t_{$e},$(df[i,2])"#
@@ -616,16 +619,12 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
                 #println("r_{$e},$(df[i,2])")
                 push!(expressions,"R$e")
             end
-        end
-        
+        end    
         append!(params,expressions)
-
-        
     end
 
     params=unique(params)
     ring=String[]
-
     for i in params
         x=split(i, "}-")
         for j in x
@@ -646,271 +645,119 @@ function gettingSymbolicInput(net::HybridNetwork, df, inheritancecorrelation)
     return params
 end
 
-function dictionary1(net,inheritancecorrelation)
-    nmerge=2 #number of edges that are merged during CF calculation
-    dict=Dict()
-    edgelengths=zeros(length(net.edge))
-    for i in 1:length(net.edge)
-        edgelengths[i]=round(net.edge[i].length, digits=dpoints)
+function terminalEdgeNumbers(net)
+    termedgenum=[]
+    for e in net.edge
+        if (PhyloNetworks.getChild(e).leaf) 
+            push!(termedgenum,e.number)
+        end
     end
-    numedges=length(edgelengths)
-    println(edgelengths)
-    for eindex in 1:numedges 
-        dict[edgelengths[eindex]] = "t_{$eindex}"
+    return termedgenum
+end
+
+function terminalNodeNumbers(net)
+    termnodenum=[]
+    for n in net.node
+        if n.leaf
+            push!(termnodenum,n.number)
+        end
     end
-    println(dict)
+    return termnodenum
+end
 
+function disjointedges(net,edgenums)
+    uvSet=[]
+    disjoint=false
+    for e in edgenums push!(uvSet,[(PhyloNetworks.getChild(net.edge[e])).number,(PhyloNetworks.getParent(net.edge[e])).number]) end
+    for uvCurrent in uvSet
+        u=uvCurrent[1]
+        v=uvCurrent[2]
+        for uvCheck in uvSet
 
+            
+        end
+    end
+    return disjoint        
+end
+
+function mergedEdgeLengthandSymbolicName(net,edgevec)
+    length=0.0    
+    symbolicName=""
+    for enum in edgevec 
+        length+=net.edge[enum].length 
+        symbolicName*="-t_{$enum}"
+    end
+    length=round(length,digits=dpoints)
+    symbolicName=chop(symbolicName,head=1,tail=0)
+
+    return length,symbolicName
 end
 
 function dictionary(net,inheritancecorrelation; convert=false)
 ##########BEGINNING OF DISCTIONARY CONSTRUCTION##########E
     #kong: create a dictionary of parameter labels to values (tau and gamma)
-    nmerge=2 #number of edges that are merged during CF calculation
     dict=Dict()
-    edgelengths=zeros(length(net.edge))
-    for i in 1:length(net.edge)
-        edgelengths[i]=round(net.edge[i].length, digits=dpoints)
-    end
-    #println(edgelengths)
-
-    #branch length => t_{branch id}
-    for e in net.edge
-        enum=e.number
-        e.length=round(e.length,digits=dpoints)
-        dict[e.length] = "t_{$enum}" #*-_-*#       
-        if(convert) dict["t_{$enum}"] = e.length end
-    end
+    #dictionary for tau
+    numEdges=length(net.edge)
+    allNetEdges=collect(1:numEdges)
+    termedgenum=terminalEdgeNumbers(net)
+    maximumNumberEdgesMerged=6 #how do we find this number depending on the network? possibly need to look into the network structure.
     
-    for i in 1:length(net.edge)
-        for j in 2:length(net.edge)
-            e1=net.edge[i]
-            e2=net.edge[j]
-            if e1==e2 break 
-            else 
-            length=round(sum([e1.length,e2.length]), digits = dpoints)
-            dict[length] = "t_{$i}-t_{$j}" #*-_-*#            
+    for mergeRange in 1:maximumNumberEdgesMerged
+        if mergeRange==1
+            for e in allNetEdges
+                net.edge[e].length=round(net.edge[e].length,digits=dpoints)
+                dict[net.edge[e].length] = "t_{$e}"      
+                if(convert) dict["t_{$e}"] = net.edge[e].length end        
             end
-        end
-    end
-    for i in 1:length(net.edge)
-        for j in 2:length(net.edge)
-            for k in 3:length(net.edge)
-                e1=net.edge[i]
-                e1.length=round(e1.length, digits = dpoints)
-                e2=net.edge[j]
-                e2.length=round(e2.length, digits = dpoints)
-                e3=net.edge[k]
-                e3.length=round(e3.length, digits = dpoints)
-                length=round(sum([e1.length,e2.length,e3.length]), digits = dpoints)
-                dict[length] = "t_{$i}-t_{$j}-t_{$k}" #*-_-*#
-            end
-        end
-    end
-    for i in 1:length(net.edge)
-        for j in 2:length(net.edge)
-            for k in 3:length(net.edge)
-                for l in 4:length(net.edge)
-                    e1=net.edge[i]
-                    e2=net.edge[j]
-                    e3=net.edge[k]
-                    e4=net.edge[l]
-                    length=round(sum([e1.length,e2.length,e3.length,e4.length]), digits = dpoints)
-                    dict[length] = "t_{$i}-t_{$j}-t_{$k}-t_{$l}" #*-_-*#
+        else
+            edgevec = combinations(allNetEdges,mergeRange) |> collect
+            for edgeCombination in edgevec
+                if isempty(intersect(edgeCombination,termedgenum))# && !disjointedges(net,edgeCombination)
+                    length,symbolicName=mergedEdgeLengthandSymbolicName(net,edgeCombination)
+                    dict[length]=symbolicName
                 end
             end
         end
     end
-    for i in 1:length(net.edge)
-        for j in 2:length(net.edge)
-            for k in 3:length(net.edge)
-                for l in 4:length(net.edge)
-                    for a in 5:length(net.edge)
-                        e1=net.edge[i]
-                        e2=net.edge[j]
-                        e3=net.edge[k]
-                        e4=net.edge[l]
-                        e5=net.edge[a]
-                        length=round(sum([e1.length,e2.length,e3.length,e4.length,e5.length]), digits = dpoints)
-                        dict[length] = "t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$a}" #*-_-*#
-                    end
-                end
-            end
-        end
-    end   
-    for i in 1:length(net.edge)
-        for j in 2:length(net.edge)
-            for k in 3:length(net.edge)
-                for l in 4:length(net.edge)
-                    for a in 5:length(net.edge)
-                        for b in 6:length(net.edge)
-                            e1=net.edge[i]
-                            e2=net.edge[j]
-                            e3=net.edge[k]
-                            e4=net.edge[l]
-                            e5=net.edge[a]
-                            e6=net.edge[b]
-                            length=round(sum([e1.length,e2.length,e3.length,e4.length,e5.length,e6.length]), digits = dpoints)
-                            dict[length] = "t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$a}-t_{$b}" #*-_-*#
-                        end
-                    end
-                end
-            end
-        end
-    end   
     
     #dictionary for gamma
-    hybnodenum=[]
+    hybnodenum=Integer[]
     for n in net.node
         if n.hybrid push!(hybnodenum,n.number) end
     end
-    lhybridnodenum=length(hybnodenum)
-    
-    for j in 1:lhybridnodenum
+
+    for j in 1:net.numHybrids
         hybnode=hybnodenum[j]
         i=1
         for e in net.edge
             child=PhyloNetworks.getChild(e)
             if child.number==hybnode
-                e.gamma=round(e.gamma, digits = dpoints)
-                if i==1 dict[e.gamma] = "r_{$j}"
+                e.gamma=round(e.gamma,digits=dpoints)
+                if i==1 dict[e.gamma]="r_{$j}"
                     if(convert) dict["r_{$j}"] = e.gamma end
                     i+=1
-                elseif i==2
-                    dict[e.gamma] = "(1-r_{$j})"
-                else
-                    println("there are tree incoming edge at hybrid node number $(child.num)")
+                elseif i==2 dict[e.gamma]="(1-r_{$j})"
+                else println("there are more than two incoming edge at hybrid node number $(child.num)")
                 end
             end 
         end
     end
 
-    inheritancecorrelation=round(inheritancecorrelation, digits = dpoints)
-    oneminusrho = 1 - inheritancecorrelation
-    oneminusrho=round(oneminusrho, digits = dpoints)
-
+    #inheritance correlation (rho) stuff
+    inheritancecorrelation=round(inheritancecorrelation,digits=dpoints)
+    oneminusrho=round(1-inheritancecorrelation,digits=dpoints)
     dict[inheritancecorrelation]="&rho"
     dict[oneminusrho] = "1-&rho"
   
-    #kong: check if there are redundant keys in dictionary. If so, regenerate parameter sets using readTopologyrand()
-    x=collect(keys(dict)) 
-    length(unique(x))==length(dict) || error("multiple keys present in the dictionary")
+    #[REMOVE]kong: check if there are redundant keys in dictionary. If so, regenerate parameter sets using readTopologyrand()
+    #[REMOVE]x=collect(keys(dict)) 
+    #[REMOVE]length(unique(x))==length(dict) || error("multiple keys present in the dictionary")
 
     ##########END OF DISCTIONARY CONSTRUCTION##########E
 
     return dict
 end
-
-
-
-
-##For Macaulay2
-function dictionarymaca(net)
-    dict=Dict()
-    edgenumber=length(net.edge)
-    retnumber=length(net.hybrid)
-    for i in 1:edgenumber
-        dict["exp(-t_{$i})"] = "X$i" #*-_-*#
-    end
-    for i in 1:edgenumber
-        for j in 1:edgenumber
-            dict["exp(-t_{$i}-t_{$j})"] = "(X$i*X$j)" #*-_-*#
-        end
-    end
-    for i in 1:edgenumber
-        for j in 1:edgenumber
-            for k in 1:edgenumber
-                dict["exp(-t_{$i}-t_{$j}-t_{$k})"] = "(X$i*X$j*X$k)" #*-_-*#
-            end
-        end
-    end
-    for i in 1:edgenumber
-        for j in 1:edgenumber
-            for k in 1:edgenumber
-                for l in 1:edgenumber
-                    dict["exp(-t_{$i}-t_{$j}-t_{$k}-t_{$l})"] = "(X$i*X$j*X$k*X$l)" #*-_-*#
-                end
-            end
-        end
-    end
-    for i in 1:edgenumber
-        for j in 1:edgenumber
-            for k in 1:edgenumber
-                for l in 1:edgenumber
-                    for x in 1:edgenumber
-                        dict["exp(-t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$x})"] = "(X$i*X$j*X$k*X$l*X$x)" #*-_-*#
-                    end
-                end
-            end
-        end
-    end
-    for i in 1:edgenumber
-        for j in 1:edgenumber
-            for k in 1:edgenumber
-                for l in 1:edgenumber
-                    for x in 1:edgenumber
-                        for y in 1:edgenumber
-                            dict["exp(-t_{$i}-t_{$j}-t_{$k}-t_{$l}-t_{$x}-t_{$y})"] = "(X$i*X$j*X$k*X$l*X$x*X$y)" #*-_-*#
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    for i in 1:retnumber
-        dict["r_{$i}"] = "R$i" #*-_-*#
-    end
-    
-    return dict
-end
-
-
-
-
-function generate_combinations(net, depth)
-    # Initialize the result with single elements
-    nedge=length(net.edge)
-    input_array=(1:nedge)
-    result = ["exp(-t{$(i)})" for i in input_array]
-    
-    # Generate combinations for the given depth
-    function recurse(current, level)
-        if level == depth
-            return
-        end
-        
-        for i in input_array
-            new_combination = "" * current * "}-t_{" * string(i) * ""
-            push!(result, "exp(-t{" * new_combination * "})")
-            recurse(new_combination, level + 1)
-        end
-    end
-    
-    # Start recursion from each element
-    for i in input_array
-        recurse(string(i), 1)
-    end
-
-    #display(result)
-    
-    return result
-end
-
-#input_array = [1, 2, 3]
-#depth = 3  # Adjust the depth as needed
-#output = generate_combinations(input_array, depth)
-
-#println(output)
-
-
-
-
-
-
-
-
-
 
 function test(net;inheritancecorrelation=0,threshold=0.01::Float64,savecsv=false::Bool)
     
