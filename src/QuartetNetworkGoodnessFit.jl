@@ -25,7 +25,8 @@ ticr!,
 ultrametrize!,
 readTopologyrand,
 test,
-plot_ntwk_with_Symbolic_Names
+plot_ntwk_with_Symbolic_Names,
+makeEdgeLabel
 
 include("utils.jl")
 include("quarnetconcordancefactors.jl")
