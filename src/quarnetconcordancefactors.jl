@@ -665,21 +665,6 @@ function terminalNodeNumbers(net)
     return termnodenum
 end
 
-function disjointedges(net,edgenums)
-    uvSet=[]
-    disjoint=false
-    for e in edgenums push!(uvSet,[(PhyloNetworks.getChild(net.edge[e])).number,(PhyloNetworks.getParent(net.edge[e])).number]) end
-    for uvCurrent in uvSet
-        u=uvCurrent[1]
-        v=uvCurrent[2]
-        for uvCheck in uvSet
-
-            
-        end
-    end
-    return disjoint        
-end
-
 function mergedEdgeLengthandSymbolicName(net,edgevec)
     length=0.0    
     symbolicName=""
@@ -852,3 +837,46 @@ function test(net;inheritancecorrelation=0,threshold=0.01::Float64,savecsv=false
 end
 
 #network non binary - having rho transformed for exp(-0)
+
+function makeEdgeLabel(net)
+    df=DataFrame(number=Integer[],label=String[])
+    for e in net.edge
+        push!(df,(e.number,"t_{$(e.number)}"))
+    end
+    return df
+end
+
+
+
+
+
+
+
+
+
+function disjointedges(net,edgeCombination)
+    uvSet=[]
+    disjoint=false
+    for e in edgeCombination push!(uvSet,[(PhyloNetworks.getParent(net.edge[e])).number,(PhyloNetworks.getChild(net.edge[e])).number]) end
+    println(uvSet)
+    for uvCurrent in uvSet
+        println("1")
+        u=uvCurrent[1]
+        v=uvCurrent[2]
+        println("u,v : $u,$v")
+        for uvCheck in uvSet
+            println("2")
+            if(u in uvCheck) continue
+            println("u in uvCheck : $u,$uvCheck")
+            elseif(v in uvCheck) continue
+            println("v in uvCheck : $v,$uvCheck")
+            else 
+                println("u and v are both not in")
+                break
+            end
+            
+        end
+        println("3")
+    end
+    return disjoint        
+end
