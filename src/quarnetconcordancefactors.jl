@@ -529,7 +529,7 @@ end
 """
 function readTopologyrand(net; defaultval=1.1::Float64)
     #--------some warnings--------#
-    defaultval>=1.1 || @warn "Setting deafultval ≥ 1.1 is recommended for various reasons."
+    #defaultval>=1.1 || @warn "Setting deafultval ≥ 1.1 is recommended for various reasons."
     
     #---------read in topology if input is newick string or HybridNetwork object---------#
     if typeof(net)==HybridNetwork net=net
@@ -538,7 +538,8 @@ function readTopologyrand(net; defaultval=1.1::Float64)
     #--------generaete arbitrary edge lengths--------#
     for e in net.edge
         #e.length=round(((rand())+defaultval), digits = dpoints)
-        e.length=round(((3*rand())+rand(1:10)-rand()), digits = dpoints)
+        #e.length=round(((3*rand())+rand(1:10)-rand()), digits = dpoints)
+        e.length=round(((rand())+e.number), digits = dpoints)
     end
 
     #--------generaete arbitrary inheritance probabilities--------#
